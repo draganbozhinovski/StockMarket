@@ -58,9 +58,9 @@ namespace StockMarket.SymbolService
         {
             var groupId = this.GetPrimaryKeyString();
 
-            
 
-            await _hubContext.Send (groupId).Send("all-rates", message);
+
+            await _hubContext.Group(groupId).Send("all-rates", message);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);
