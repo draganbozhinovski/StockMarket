@@ -54,13 +54,11 @@ namespace StockMarket.SymbolService
             return await resp.Content.ReadAsStringAsync();
         }
 
-        private async Task SendMessageAsync(string message)
+        public async Task SendMessageAsync(string message)
         {
             var groupId = this.GetPrimaryKeyString();
 
-
-
-            await _hubContext.Group(groupId).Send("all-rates", message);
+            await _hubContext.Group(groupId).Send("SendAllRates", message);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);

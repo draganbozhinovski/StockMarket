@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Orleans;
 using StockMarket.Common;
+using System.Reflection;
+using System.Xml.Linq;
 
 namespace StockMarket.API.Hubs
 {
@@ -15,12 +17,9 @@ namespace StockMarket.API.Hubs
             _client = clusterClient ?? throw new ArgumentNullException(nameof(clusterClient));
         }
 
-        public async Task Send(string name, string message)
+        public async Task SendMessage(string message)
         {
-            _logger.LogInformation($"{nameof(Send)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
-
-            var userNotificationGrain = _client.GetGrain<IStockSymbolsPriceGrain>(Guid.Empty.ToString());
-            await userNotificationGrain.GetSymbolsPrice();
+           await  Clients.Group("all-rates").SendAsync("SendAllRates", message);
         }
 
         public override async Task OnConnectedAsync()
@@ -28,7 +27,10 @@ namespace StockMarket.API.Hubs
             _logger.LogInformation($"{nameof(OnConnectedAsync)} called.");
 
             await base.OnConnectedAsync();
-            await Groups.AddToGroupAsync(Context.ConnectionId, Guid.Empty.ToString());
+            await Groups.AddToGroupAsync(Context.ConnectionId, "all-rates");
+
+            var userNotificationGrain = _client.GetGrain<IStockSymbolsPriceGrain>("all-rates");
+            await userNotificationGrain.GetSymbolsPrice();
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
@@ -36,7 +38,17 @@ namespace StockMarket.API.Hubs
             _logger.LogInformation(exception, $"{nameof(OnDisconnectedAsync)} called.");
 
             await base.OnDisconnectedAsync(exception);
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, Guid.Empty.ToString());
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, "all-rates");
+        }
+
+        public Task SendAllRates(string message)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SendMessageToGroup(string groupname, string sender, string message)
+        {
+            return Clients.Group(groupname).SendAsync("SendMessage", sender, message);
         }
     }
 }

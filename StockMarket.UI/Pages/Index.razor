@@ -39,7 +39,7 @@
             .WithUrl(url)
             .Build();
 
-        hubConnection.On<string>("all-rates", (message) =>
+        hubConnection.On<string>("SendAllRates", (message) =>
         {
             var encodedMsg = $"{message}";
             messages.Add(encodedMsg);
@@ -50,7 +50,7 @@
     }
 
     async Task Send() =>
-        await hubConnection.SendAsync("SendMessage", userInput, messageInput);
+        await hubConnection.SendAsync("SendMessage", messageInput);
 
     public bool IsConnected =>
         hubConnection.State == HubConnectionState.Connected;
