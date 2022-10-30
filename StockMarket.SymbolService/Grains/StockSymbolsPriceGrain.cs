@@ -1,24 +1,27 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.AspNetCore.SignalR.Client;
+using Newtonsoft.Json;
 using Orleans;
-using SignalR.Orleans.Core;
+using Orleans.Concurrency;
 using StockMarket.Common;
 
-namespace StockMarket.SymbolService
+namespace StockMarket.SymbolService.Grains
 {
-    public class StockSymbolsPriceGrain : Grain, IStockSymbolsPriceGrain
+    [StatelessWorker(1)]
+    public class StockSymbolsPriceGrain : GrainBase, IStockSymbolsPriceGrain
     {
-        private const string StockEndpoint = "https://api.coinbase.com/v2/prices/";
-        private readonly HttpClient _httpClient = new();
-
         private string _price = null!;
-
-        private HubContext<INotificationHub> _hubContext;
-
         public override async Task OnActivateAsync()
         {
-            _hubContext = GrainFactory.GetHub<INotificationHub>();
             string allStocks;
             this.GetPrimaryKey(out allStocks);
+            var url = new Uri("https://localhost:7015/notificationhub");
+
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(url)
+                .Build();
+
+            await hubConnection.StartAsync();
+
             await UpdatePrice(allStocks);
             var timer = RegisterTimer(
                                         UpdatePrice,
@@ -41,7 +44,7 @@ namespace StockMarket.SymbolService
                 Console.WriteLine($"Price for: {stock} -> {_price}");
             }
             var dataRates = JsonConvert.SerializeObject(allRates);
-            await SendMessageAsync(dataRates);
+            await SendAllRates(dataRates);
 
         }
 
@@ -54,11 +57,10 @@ namespace StockMarket.SymbolService
             return await resp.Content.ReadAsStringAsync();
         }
 
-        public async Task SendMessageAsync(string message)
+        public async Task SendAllRates(string message)
         {
-            var groupId = this.GetPrimaryKeyString();
+            await hubConnection.SendAsync("AllRates", message);
 
-            await _hubContext.Group(groupId).Send("SendAllRates", message);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);

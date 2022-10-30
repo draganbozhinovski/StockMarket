@@ -1,6 +1,5 @@
 ﻿using Orleans;
 using StockMarket.Common;
-using SignalR.Orleans.Clients;
 using Orleans.Hosting;
 
 namespace StockMarket.API
@@ -11,13 +10,7 @@ namespace StockMarket.API
         public ClusterClientHostedService(ILoggerProvider loggerProvider)
         {
             Client = new ClientBuilder()
-                .UseLocalhostClustering(serviceId: "ChatSampleApp", clusterId: "dev")
-                .UseSignalR()
-                .ConfigureApplicationParts(parts =>
-                {
-                    parts.AddApplicationPart(typeof(IClientGrain).Assembly).WithReferences();
-                    parts.AddApplicationPart(typeof(IStockSymbolsPriceGrain).Assembly).WithReferences();
-                })
+                .UseLocalhostClustering()                
                 .ConfigureLogging(builder => builder.AddProvider(loggerProvider))
                 .Build();
         }
