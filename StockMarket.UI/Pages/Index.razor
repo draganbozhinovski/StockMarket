@@ -1,0 +1,75 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Newtonsoft.Json
+@using StockMarket.Common
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Stock Symbols Price</PageTitle>
+
+<h1>Stock Symbols Price</h1>
+
+@if (priceUpdates.Count() < 1)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <hr>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Base</th>
+                <th>Currency</th>
+                <th>Amount</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var priceUpdate in priceUpdates)
+            {
+                <tr>
+                    <td>@priceUpdate.Data.Base</td>
+                    <td>@priceUpdate.Data.Currency</td>
+                    <td>@priceUpdate.Data.Amount</td>
+                    <td></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private HubConnection hubConnection;
+    private List<PriceUpdate> priceUpdates = new List<PriceUpdate>();
+    private string userInput;
+    private string messageInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var url = new Uri("https://localhost:7015/notificationhub");
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(url)
+            .Build();
+
+        hubConnection.On<string>("SendAllRates", (message) =>
+        {
+            priceUpdates = JsonConvert.DeserializeObject<List<PriceUpdate>>(message);
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    async Task Send() =>
+        await hubConnection.SendAsync("SendMessage", messageInput);
+
+    public bool IsConnected =>
+        hubConnection.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        await hubConnection.DisposeAsync();
+    }
+}
