@@ -3,7 +3,12 @@ using Microsoft.Extensions.Hosting;
 using Orleans;
 using Orleans.Hosting;
 using StockMarket.Common;
+using StockMarket.Common.Hubs;
 using StockMarket.SymbolService;
+
+
+
+
 
 await Host.CreateDefaultBuilder(args)
     .UseOrleans(siloBuilder =>
@@ -11,15 +16,18 @@ await Host.CreateDefaultBuilder(args)
         siloBuilder
             .UseSignalR(builder =>
             {
+
                 builder
                     .Configure((innerSiloBuilder, config) =>
                     {
+                        
                         innerSiloBuilder
                             .UseLocalhostClustering(serviceId: "ChatSampleApp", clusterId: "dev")
                             .AddMemoryGrainStorage("PubSubStore")
                             .ConfigureApplicationParts(parts => parts.AddApplicationPart(typeof(StockSymbolsPriceGrain).Assembly).WithReferences());
                     });
-            })
+                
+            })            
             .UseLocalhostClustering()
             .UseDashboard(x =>
             {

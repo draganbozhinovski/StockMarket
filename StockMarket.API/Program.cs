@@ -1,6 +1,6 @@
 using Orleans;
 using StockMarket.API;
-using StockMarket.API.Hubs;
+using StockMarket.Common.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -13,6 +13,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="3.6.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="SignalR.Orleans" Version="2.2.0" />
   </ItemGroup>
 
 </Project>

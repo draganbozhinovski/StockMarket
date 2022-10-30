@@ -26,6 +26,7 @@ namespace StockMarket.API
             await Client.Connect(CreateRetryFilter());
 
             var grain = Client.GetGrain<IStockSymbolsPriceGrain>("all-rates");
+            
             await Task.Factory.StartNew(async () => grain.GetSymbolsPrice().ConfigureAwait(false));
         }
 
