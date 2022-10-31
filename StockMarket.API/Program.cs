@@ -1,6 +1,7 @@
 using Orleans;
 using StockMarket.API;
 using StockMarket.API.Hubs;
+using StockMarket.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,8 @@ builder.Services.AddSingleton<IClusterClient>(
     sp => sp.GetService<ClusterClientHostedService>().Client);
 builder.Services.AddSingleton<IGrainFactory>(
     sp => sp.GetService<ClusterClientHostedService>().Client);
+
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 var app = builder.Build();

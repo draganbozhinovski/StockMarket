@@ -3,9 +3,9 @@
     public class Order
     {
         public Guid Id { get; set; }
-        public string? User { get; set; }
-        public string? Stock { get; set; }
-        public double? Number { get; set; }
+        public User? User { get; set; }
+        public Currency? Currency { get; set; }
+        public double? NumberOf { get; set; }
         public double? Bid { get; set; }
     }
 }

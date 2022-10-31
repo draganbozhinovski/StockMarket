@@ -8,26 +8,21 @@ namespace StockMarket.SymbolService.Grains
     {
         private bool _processStatus = true;
 
-
-        public override async Task OnActivateAsync()
-        {
-            await base.OnActivateAsync();
-        }
-
         private async Task ProcessOrder(Order order)
         {
             while (_processStatus)
             {
-                var price = await GetPriceQuote(order.Stock);
+                var price = await GetPriceQuote(order.Currency.ToString());
                 var stockData = JsonConvert.DeserializeObject<PriceUpdate>(price);
-                var message = $"Stock:{order.Stock} Bid:{order.Bid} Ammount:{stockData?.Data.Amount} Number:{order.Number}";
-                Console.WriteLine($"Order for User {order.User} with Id {order.Id} -> {message}");
+
+                var message = $"Stock:{order.Currency} Bid:{order.Bid} Ammount:{stockData?.Data.Amount} Number:{order.NumberOf}";
+
+                Console.WriteLine($"Order for User {order.User.Name} with Id {order.Id} -> {message}");
                 if (Convert.ToDouble(stockData?.Data.Amount) <= order.Bid)
                 {
                     //Continue to inform the user success and update the cache balance
                     _processStatus = false;
                 }
-                Thread.Sleep(5000);
             }
         }
 

@@ -15,12 +15,13 @@ namespace StockMarket.SymbolService.Grains
             return base.OnActivateAsync();
         }
 
-        public Task CreateUser(string name)
+        public async Task<User> CreateUser(string name)
         {
-            return Task.FromResult(() => user.Name = name);
+            user.Name = name;
+            return await Task.FromResult(user);
         }
 
-        public Task AddUSDT(double ammount)
+        public async Task<List<WalletCurrency>> AddUSDT(double ammount)
         {
             var walletCurrency = new WalletCurrency
             {
@@ -28,19 +29,27 @@ namespace StockMarket.SymbolService.Grains
                 Currency = Currency.USDT
             };
 
-            return Task.FromResult(_walletGrain?.AddToWallet(walletCurrency));
+           var wallet = await _walletGrain?.AddToWallet(walletCurrency);
+
+            return  wallet;
         }
-        public Task AddToWallet(WalletCurrency walletCurrency)
+        public async Task<List<WalletCurrency>> AddToWallet(WalletCurrency walletCurrency)
         {
-            return Task.FromResult(_walletGrain?.AddToWallet(walletCurrency));
+            var wallet = await _walletGrain?.AddToWallet(walletCurrency);
+            return wallet;
         }
 
-        public Task RemoveFromWallet(WalletCurrency walletCurrency)
+        public async Task<List<WalletCurrency>> RemoveFromWallet(WalletCurrency walletCurrency)
         {
-            return Task.FromResult(_walletGrain?.RemoveFromWallet(walletCurrency));
+            var wallet = await _walletGrain?.RemoveFromWallet(walletCurrency);
+            return wallet;
         }
 
-        public Task<List<WalletCurrency>> GetWallet() => Task.FromResult(_walletGrain.GetWallet().Result);
+        public async Task<List<WalletCurrency>> GetWallet()
+        {
+            var wallet = await _walletGrain.GetWallet();
+            return wallet;
+        }
 
 
 

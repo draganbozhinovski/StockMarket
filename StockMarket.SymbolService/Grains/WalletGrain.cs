@@ -16,27 +16,33 @@ namespace StockMarket.SymbolService.Grains
             _walletCurrencies = new List<WalletCurrency>();
             return base.OnActivateAsync();
         }
-        public Task AddToWallet(WalletCurrency walletCurrency)
+        public async Task<List<WalletCurrency>> AddToWallet(WalletCurrency walletCurrency)
         {
             if (_walletCurrencies.Any(x => x.Currency == walletCurrency.Currency))
             {
-                return Task.FromResult(() =>
-                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount += walletCurrency.Ammount);
+
+                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount += walletCurrency.Ammount;
+                return await Task.FromResult(_walletCurrencies);
             }
 
-            return Task.FromResult(() => _walletCurrencies?.Add(walletCurrency));
+            _walletCurrencies?.Add(walletCurrency);
+            return await Task.FromResult(_walletCurrencies);
         }
 
-        public Task RemoveFromWallet(WalletCurrency walletCurrency)
+        public async Task<List<WalletCurrency>> RemoveFromWallet(WalletCurrency walletCurrency)
         {
             if (_walletCurrencies.Any(x => x.Currency == walletCurrency.Currency))
             {
-                return Task.FromResult(() =>
-                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount -= walletCurrency.Ammount);
+                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount -= walletCurrency.Ammount;
+                return await Task.FromResult(_walletCurrencies);
             }
-            return Task.FromResult(() => _walletCurrencies?.Remove(walletCurrency));
+             _walletCurrencies?.Remove(walletCurrency);
+            return await Task.FromResult(_walletCurrencies);
         }
 
-        public Task<List<WalletCurrency>> GetWallet() => Task.FromResult(_walletCurrencies);
+        public async Task<List<WalletCurrency>> GetWallet()
+        {
+            return await Task.FromResult(_walletCurrencies);
+        }
     }
 }
