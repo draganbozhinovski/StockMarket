@@ -7,13 +7,13 @@ using StockMarket.Common;
 namespace StockMarket.SymbolService.Grains
 {
     [StatelessWorker(1)]
-    public class StockSymbolsPriceGrain : GrainBase, IStockSymbolsPriceGrain
+    public class CurrenciesPriceGrain : GrainBase, ICurrenciesPriceGrain
     {
         private string _price = null!;
         public override async Task OnActivateAsync()
         {
-            string allStocks;
-            this.GetPrimaryKey(out allStocks);
+            string allCurrencies;
+            this.GetPrimaryKey(out allCurrencies);
             var url = new Uri("https://localhost:7015/notificationhub");
 
             hubConnection = new HubConnectionBuilder()
@@ -22,22 +22,22 @@ namespace StockMarket.SymbolService.Grains
 
             await hubConnection.StartAsync();
 
-            await UpdatePrice(allStocks);
+            await UpdatePrice(allCurrencies);
             var timer = RegisterTimer(
                                         UpdatePrice,
-                                        allStocks,
+                                        allCurrencies,
                                         TimeSpan.FromSeconds(1),
                                         TimeSpan.FromSeconds(1));
 
             await base.OnActivateAsync();
         }
 
-        private async Task UpdatePrice(object allStocks)
+        private async Task UpdatePrice(object allCurrencies)
         {
-            Console.WriteLine($"Grain -> {(string)allStocks}");
-            List<string> stocks = new List<string> { "BTC", "ETH", "DOT", "ADA", "SOL", "DOGE", "MATIC" };
+            Console.WriteLine($"Grain -> {(string)allCurrencies}");
+            List<string> currencies = new Currencies().CurrenciesInUse;
             List<PriceUpdate> allRates = new List<PriceUpdate>();
-            foreach (var stock in stocks)
+            foreach (var stock in currencies)
             {
                 _price = await GetPriceQuote(stock);
                 allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
@@ -60,7 +60,6 @@ namespace StockMarket.SymbolService.Grains
         public async Task SendAllRates(string message)
         {
             await hubConnection.SendAsync("AllRates", message);
-
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);

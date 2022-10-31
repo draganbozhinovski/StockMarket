@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace StockMarket.Common
 {
-    public interface IStockSymbolsPriceGrain : IGrainWithStringKey
+    public interface ICurrenciesPriceGrain : IGrainWithStringKey
     {
         Task<string> GetSymbolsPrice();
     }

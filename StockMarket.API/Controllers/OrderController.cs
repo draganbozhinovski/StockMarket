@@ -18,7 +18,8 @@ namespace StockMarket.API.Controllers
 
 
         [HttpPost]
-        public async Task Create([FromBody]Order order)
+        [Route("createorder")]
+        public async Task Create([FromBody] Order order)
         {
             order.Id = Guid.NewGuid();
 
@@ -26,5 +27,34 @@ namespace StockMarket.API.Controllers
 
             await Task.Factory.StartNew(() => Task.FromResult(grain.CreateOrder(order).ConfigureAwait(false)));
         }
+
+        [HttpPost]
+        [Route("createUser")]
+        public async Task CreateUser([FromBody] User user)
+        {
+            var grain = _client.GetGrain<IUserGrain>(user.Id);
+
+            await Task.Factory.StartNew(() => Task.FromResult(grain.CreateUser(user.Name).ConfigureAwait(false)));
+        }
+
+        [HttpPost]
+        [Route("AddUSDT/{ammount}/{userId}")]
+        public async Task AddUSDT([FromRoute] double ammount, [FromRoute] Guid userId)
+        {
+            var grain = _client.GetGrain<IUserGrain>(userId);
+
+            await Task.Factory.StartNew(() => Task.FromResult(grain.AddUSDT(ammount).ConfigureAwait(false)));
+        }
+
+        [HttpPost]
+        [Route("GetWallet/{userId}")]
+        public async Task<List<WalletCurrency>> GetWallet( [FromRoute] Guid userId)
+        {
+            var grain = _client.GetGrain<IUserGrain>(userId);
+
+            return await grain.GetWallet();
+        }
+
+
     }
 }
