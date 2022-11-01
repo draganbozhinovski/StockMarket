@@ -16,20 +16,20 @@ namespace StockMarket.API.Controllers
         }
 
         [HttpPost]
-        [Route("[method]")]
+        [Route("Create")]
         public async Task<User> CreateUser(User user)
         {
             return await _userService.CreateUser(user);
         }
 
         [HttpPost]
-        [Route("[method]")]
+        [Route("AddUSDT")]
         public async Task<List<WalletCurrency>> AddUSDT(Usdt usdt)
         {
             return await _userService.AddUSDT(usdt);
         }
         [HttpGet]
-        [Route("[method]")]
+        [Route("Wallet")]
         public async Task<List<WalletCurrency>> GetWallet(Guid userId)
         {
             return await _userService.GetWallet(userId);
