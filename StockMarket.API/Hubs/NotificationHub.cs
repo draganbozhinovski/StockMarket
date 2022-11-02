@@ -8,6 +8,7 @@ namespace StockMarket.API.Hubs
 {
     public class NotificationHub : Hub
     {
+        public Dictionary<string, Guid> users = new Dictionary<string, Guid>();
         public NotificationHub()
         {
         }

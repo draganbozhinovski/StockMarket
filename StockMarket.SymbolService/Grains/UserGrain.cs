@@ -33,6 +33,19 @@ namespace StockMarket.SymbolService.Grains
 
             return  wallet;
         }
+
+        public async Task<List<WalletCurrency>> RemoveUsdt(double ammount)
+        {
+            var walletCurrency = new WalletCurrency
+            {
+                Ammount = ammount,
+                Currency = Currency.USDT
+            };
+
+            var wallet = await _walletGrain?.RemoveFromWallet(walletCurrency);
+
+            return wallet;
+        }
         public async Task<List<WalletCurrency>> AddToWallet(WalletCurrency walletCurrency)
         {
             var wallet = await _walletGrain?.AddToWallet(walletCurrency);

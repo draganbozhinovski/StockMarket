@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Orleans;
 using Orleans.Concurrency;
+using Orleans.Runtime;
 using StockMarket.Common;
 
 namespace StockMarket.SymbolService.Grains
@@ -9,18 +10,14 @@ namespace StockMarket.SymbolService.Grains
     [StatelessWorker(1)]
     public class CurrenciesPriceGrain : GrainBase, ICurrenciesPriceGrain
     {
+        private Uri _url = new Uri("https://localhost:7015/notificationhub");
         private string _price = null!;
         public override async Task OnActivateAsync()
         {
             string allCurrencies;
             this.GetPrimaryKey(out allCurrencies);
-            var url = new Uri("https://localhost:7015/notificationhub");
 
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(url)
-                .Build();
-
-            await hubConnection.StartAsync();
+            await ConnectToHub();
 
             await UpdatePrice(allCurrencies);
             var timer = RegisterTimer(
@@ -32,8 +29,13 @@ namespace StockMarket.SymbolService.Grains
             await base.OnActivateAsync();
         }
 
+
         private async Task UpdatePrice(object allCurrencies)
         {
+            if(hubConnection.State == HubConnectionState.Disconnected)
+            {
+                await ConnectToHub();
+            }
             Console.WriteLine($"Grain -> {(string)allCurrencies}");
             List<string> currencies = new Currencies().CurrenciesInUse;
             List<PriceUpdate> allRates = new List<PriceUpdate>();
@@ -57,11 +59,22 @@ namespace StockMarket.SymbolService.Grains
             return await resp.Content.ReadAsStringAsync();
         }
 
+        private async Task ConnectToHub()
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(_url)
+                .Build();
+
+            await hubConnection.StartAsync();
+        }
+
         public async Task SendAllRates(string message)
         {
             await hubConnection.SendAsync("AllRates", message);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);
+
+
     }
 }

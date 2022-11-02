@@ -4,6 +4,7 @@
 @using StockMarket.Common
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
+@inject HttpClient Http
 
 <PageTitle>Stock Symbols Price</PageTitle>
 
@@ -37,14 +38,42 @@ else
             }
         </tbody>
     </table>
+    <hr />
+    <div class="container">
+        @if (!userCreated)
+        {
+            <h2>Create user, to strart trading</h2>
+            <hr />
+            <div class="form-group">
+                <label>User Name</label>
+                <input type="text" @bind="@userName" @oninput="OnUserNameInputEvent" />
+            </div>
+            <button class="btn btn-primary" @onclick="CreateUser">Create</button>
+        }
+        else
+        {
+            <h3>Welcome @userName</h3>
+            <b>Trensfer $ to USDT to you wallet</b>
+            <div class="form-group">
+                <label>$</label>
+                <input type="number" @bind="@usdtToWallet" @oninput="OnUSDTToInputEvent" />
+            </div>
+            <button class="btn btn-primary" @onclick="AddUSDT">Transfer</button>
+
+        }
+    </div>
 }
 
 
 @code {
+    private string apiUrl = "https://localhost:7015";
     private HubConnection hubConnection;
     private List<PriceUpdate> priceUpdates = new List<PriceUpdate>();
-    private string userInput;
-    private string messageInput;
+
+    private bool userCreated = false;
+    private string userName = null;
+    private string usdtToWallet = null;
+    private Guid userId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,14 +91,45 @@ else
         await hubConnection.StartAsync();
     }
 
-    async Task Send() =>
-        await hubConnection.SendAsync("SendMessage", messageInput);
-
     public bool IsConnected =>
         hubConnection.State == HubConnectionState.Connected;
 
     public async ValueTask DisposeAsync()
     {
         await hubConnection.DisposeAsync();
+    }
+
+    private void OnUserNameInputEvent(ChangeEventArgs changeEvent)
+    {
+        userName = (string)changeEvent.Value;
+    }
+
+    private async Task CreateUser()
+    {
+        var user = new User
+            {
+                Name = userName,
+                Id = Guid.NewGuid()
+            };
+        userId = user.Id;
+        var a = await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
+        userCreated = true;
+        StateHasChanged();
+    }
+
+    private void OnUSDTToInputEvent(ChangeEventArgs changeEvent)
+    {
+        usdtToWallet = (string)changeEvent.Value;
+    }
+
+    private async Task AddUSDT()
+    {
+        double ammount = Double.Parse(usdtToWallet, System.Globalization.NumberStyles.None);
+        var usdt = new Usdt
+            {
+                UserId = userId,
+                Ammount = ammount
+            };
+        await Http.PostAsJsonAsync<Usdt>($"{apiUrl}/api/User/AddUSDT", usdt);
     }
 }
