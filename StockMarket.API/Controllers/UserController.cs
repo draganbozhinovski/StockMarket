@@ -29,7 +29,7 @@ namespace StockMarket.API.Controllers
             return await _userService.AddUSDT(usdt);
         }
         [HttpGet]
-        [Route("Wallet")]
+        [Route("Wallet/{userId}")]
         public async Task<List<WalletCurrency>> GetWallet(Guid userId)
         {
             return await _userService.GetWallet(userId);

@@ -21,14 +21,12 @@ namespace StockMarket.API.Controllers
         [Route("createorder")]
         public async Task Create([FromBody] Order order)
         {
-            order.Id = Guid.NewGuid();
-
             var grain = _client.GetGrain<IOrderGrain>(order.Id);
 
             await Task.Factory.StartNew(() => Task.FromResult(grain.CreateOrder(order).ConfigureAwait(false)));
         }
 
-        
+
 
 
     }

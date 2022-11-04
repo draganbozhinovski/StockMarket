@@ -2,13 +2,19 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using Newtonsoft.Json
 @using StockMarket.Common
+@using System.Globalization
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 @inject HttpClient Http
 
 <PageTitle>Stock Symbols Price</PageTitle>
 
-<h1>Stock Symbols Price</h1>
+<h1>Coin Symbols Price</h1>
+
+@if (userCreated)
+{
+    <h2>Welcome @userName</h2>
+}
 
 @if (priceUpdates.Count() < 1)
 {
@@ -17,51 +23,102 @@
 else
 {
     <hr>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Base</th>
-                <th>Currency</th>
-                <th>Amount</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var priceUpdate in priceUpdates)
-            {
-                <tr>
-                    <td>@priceUpdate.Data.Base</td>
-                    <td>@priceUpdate.Data.Currency</td>
-                    <td>@priceUpdate.Data.Amount</td>
-                    <td></td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <hr />
     <div class="container">
-        @if (!userCreated)
-        {
-            <h2>Create user, to strart trading</h2>
-            <hr />
-            <div class="form-group">
-                <label>User Name</label>
-                <input type="text" @bind="@userName" @oninput="OnUserNameInputEvent" />
+        <div class="row">
+            <div class="col">
+                <table class="table d-md-table-cell">
+                    <thead>
+                        <tr>
+                            <th>Base</th>
+                            <th>Currency</th>
+                            <th>Amount USDT</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var priceUpdate in priceUpdates)
+                        {
+                            <tr>
+                                <td>@priceUpdate.Data.Base</td>
+                                <td>@priceUpdate.Data.Currency</td>
+                                <td>@priceUpdate.Data.Amount</td>
+                                @if (userCreated && walletCurrencies.Any(x => x.Ammount > 0))
+                                {
+                                    <td>
+                                        <div class="input-group mb-3">
+                                            <input type="number" class="form-control" placeholder="Bid" @bind="@bid"  aria-label="Bid" aria-describedby="basic-addon2">
+                                            <input type="number" class="form-control" placeholder="Number Of" @bind="@numberOf" aria-label="Number Of" aria-describedby="basic-addon2" />
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-primary" type="button" @onclick="() => StartOrder(priceUpdate)">Order</button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-            <button class="btn btn-primary" @onclick="CreateUser">Create</button>
-        }
-        else
-        {
-            <h3>Welcome @userName</h3>
-            <b>Trensfer $ to USDT to you wallet</b>
-            <div class="form-group">
-                <label>$</label>
-                <input type="number" @bind="@usdtToWallet" @oninput="OnUSDTToInputEvent" />
-            </div>
-            <button class="btn btn-primary" @onclick="AddUSDT">Transfer</button>
+            <div class="col">
+                @if (!userCreated)
+                {
+                    <div class="col">
+                        <h2>Create user, to strart trading</h2>
+                        <hr />
+                        <div class="form-group">
+                            <label>User Name</label>
+                            <input type="text" class="form-control" @bind="@userName" @oninput="OnUserNameInputEvent" />
+                        </div>
+                        <hr>
+                        <button class="btn btn-primary" @onclick="CreateUser">Create</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="col">
+                        <b>Trensfer $ to USDT to you wallet</b>
+                        <hr>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">$</span>
+                            </div>
+                            <input type="number" class="form-control" @bind="@usdtToWallet" @oninput="OnUSDTToInputEvent" />
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" @onclick="AddUSDT">Transfer</button>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    @if (true)
+                    {
+                        <div class="col">
+                            <h3>Active orders</h3>
+                            <hr>
+                        </div>
+                    }
+                    <div class="col">
+                        <h3>Current wallet status</h3>
+                        <hr>
+                        <div class="row">
+                            @foreach (var walletCurrency in walletCurrencies)
+                            {
+                                <div class="col m-1">
+                                    <div class="card" style="width: 10rem;">
+                                        <ul class="list-group list-group-flush">
+                                            <li class="list-group-item">@Enum.GetName(walletCurrency.Currency)</li>
+                                            <li class="list-group-item">@walletCurrency.Ammount</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            }
 
-        }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
+
 }
 
 
@@ -71,16 +128,21 @@ else
     private List<PriceUpdate> priceUpdates = new List<PriceUpdate>();
 
     private bool userCreated = false;
-    private string userName = null;
-    private string usdtToWallet = null;
-    private Guid userId;
+    private string userName = "";
+    private string usdtToWallet = "";
+    private string bid = "";
+    private string numberOf = "";
+
+    private User user;
+
+    private List<WalletCurrency> walletCurrencies = new List<WalletCurrency>();
 
     protected override async Task OnInitializedAsync()
     {
         var url = new Uri("https://localhost:7015/notificationhub");
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(url)
-            .Build();
+        .WithUrl(url)
+        .Build();
 
         hubConnection.On<string>("SendAllRates", (message) =>
         {
@@ -92,44 +154,68 @@ else
     }
 
     public bool IsConnected =>
-        hubConnection.State == HubConnectionState.Connected;
+    hubConnection.State == HubConnectionState.Connected;
 
     public async ValueTask DisposeAsync()
     {
         await hubConnection.DisposeAsync();
     }
 
-    private void OnUserNameInputEvent(ChangeEventArgs changeEvent)
-    {
-        userName = (string)changeEvent.Value;
-    }
+    private void OnUserNameInputEvent(ChangeEventArgs changeEvent) => userName = (string)changeEvent.Value;
+    private void OnUSDTToInputEvent(ChangeEventArgs changeEvent) => usdtToWallet = (string)changeEvent.Value;
+    private void OnBidInputEvent(ChangeEventArgs changeEvent) => bid = (string)changeEvent.Value;
+    private void OnNumberOfInputEvent(ChangeEventArgs changeEvent) => numberOf = (string)changeEvent.Value;
 
     private async Task CreateUser()
     {
-        var user = new User
+        user = new User
             {
                 Name = userName,
                 Id = Guid.NewGuid()
             };
-        userId = user.Id;
-        var a = await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
+        await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
         userCreated = true;
         StateHasChanged();
     }
 
-    private void OnUSDTToInputEvent(ChangeEventArgs changeEvent)
-    {
-        usdtToWallet = (string)changeEvent.Value;
-    }
-
     private async Task AddUSDT()
     {
-        double ammount = Double.Parse(usdtToWallet, System.Globalization.NumberStyles.None);
+        double ammount = Double.Parse(usdtToWallet, NumberStyles.None);
         var usdt = new Usdt
             {
-                UserId = userId,
+                UserId = user.Id,
                 Ammount = ammount
             };
-        await Http.PostAsJsonAsync<Usdt>($"{apiUrl}/api/User/AddUSDT", usdt);
+        await Http.PostAsJsonAsync($"{apiUrl}/api/User/AddUSDT", usdt);
+        usdtToWallet = string.Empty;
+        await GetWallet();
+        StateHasChanged();
+    }
+
+    private async Task GetWallet() =>
+        walletCurrencies = await Http.GetFromJsonAsync<List<WalletCurrency>>($"{apiUrl}/api/User/Wallet/{user.Id}");
+
+    private async Task StartOrder(PriceUpdate priceUpdate)
+    {
+        try
+        {
+            var order = new Order
+                {
+                    Bid = Double.Parse(bid, NumberStyles.None),
+                    Currency = (Currency)Enum.Parse(typeof(Currency), priceUpdate.Data.Base),
+                    NumberOf = Double.Parse(numberOf, NumberStyles.None),
+                    User = user,
+                    Id = Guid.NewGuid()
+                };
+
+            await Http.PostAsJsonAsync($"{apiUrl}/api/Order/createorder", order);
+            bid = "";
+            numberOf = "";
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+
+        }
     }
 }

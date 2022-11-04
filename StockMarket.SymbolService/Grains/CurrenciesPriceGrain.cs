@@ -36,14 +36,12 @@ namespace StockMarket.SymbolService.Grains
             {
                 await ConnectToHub();
             }
-            Console.WriteLine($"Grain -> {(string)allCurrencies}");
             List<string> currencies = new Currencies().CurrenciesInUse;
             List<PriceUpdate> allRates = new List<PriceUpdate>();
             foreach (var stock in currencies)
             {
                 _price = await GetPriceQuote(stock);
                 allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
-                Console.WriteLine($"Price for: {stock} -> {_price}");
             }
             var dataRates = JsonConvert.SerializeObject(allRates);
             await SendAllRates(dataRates);
