@@ -8,4 +8,9 @@
         public double NumberOf { get; set; } = 1;
         public double Bid { get; set; }
     }
+
+    public class OrderInProcess : Order
+    {
+        public double CurrentAmmount { get; set; }
+    }
 }

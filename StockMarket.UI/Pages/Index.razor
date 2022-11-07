@@ -9,12 +9,19 @@
 
 <PageTitle>Stock Symbols Price</PageTitle>
 
-<h1>Coin Symbols Price</h1>
-
-@if (userCreated)
-{
-    <h2>Welcome @userName</h2>
-}
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <h1>Coin Symbols Price</h1>
+        </div>
+        <div class="col-md-6">
+            @if (userCreated)
+            {
+                <h2 class="pull-right">Welcome:<b> @userName</b></h2>
+            }
+        </div>
+    </div>
+</div>
 
 @if (priceUpdates.Count() < 1)
 {
@@ -46,7 +53,7 @@ else
                                 {
                                     <td>
                                         <div class="input-group mb-3">
-                                            <input type="number" class="form-control" placeholder="Bid" @bind="@bid"  aria-label="Bid" aria-describedby="basic-addon2">
+                                            <input type="number" class="form-control" placeholder="Bid" @bind="@bid" aria-label="Bid" aria-describedby="basic-addon2">
                                             <input type="number" class="form-control" placeholder="Number Of" @bind="@numberOf" aria-label="Number Of" aria-describedby="basic-addon2" />
                                             <div class="input-group-append">
                                                 <button class="btn btn-outline-primary" type="button" @onclick="() => StartOrder(priceUpdate)">Order</button>
@@ -89,13 +96,27 @@ else
                         </div>
                         <hr>
                     </div>
-                    @if (true)
-                    {
-                        <div class="col">
-                            <h3>Active orders</h3>
-                            <hr>
+
+                    <div class="col">
+                        <h3>Active orders</h3>
+                        <hr>
+                        <div class="row">
+                            @foreach (var orderInProcess in ordersInProcess)
+                            {
+                                <div class="col m-1">
+                                    <div class="card" style="width: 10rem;">
+                                        <ul class="list-group list-group-flush">
+                                            <li class="list-group-item">@Enum.GetName(orderInProcess.Currency)</li>
+                                            <li class="list-group-item">@orderInProcess.CurrentAmmount</li>
+                                            <li class="list-group-item"><b>@orderInProcess.Bid</b></li>
+                                            <li class="list-group-item">@orderInProcess.NumberOf</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            }
                         </div>
-                    }
+                    </div>
+
                     <div class="col">
                         <h3>Current wallet status</h3>
                         <hr>
@@ -136,6 +157,7 @@ else
     private User user;
 
     private List<WalletCurrency> walletCurrencies = new List<WalletCurrency>();
+    private List<OrderInProcess> ordersInProcess = new List<OrderInProcess>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,6 +169,41 @@ else
         hubConnection.On<string>("SendAllRates", (message) =>
         {
             priceUpdates = JsonConvert.DeserializeObject<List<PriceUpdate>>(message);
+            StateHasChanged();
+        });
+
+        hubConnection.On<OrderInProcess>("NotifyOrderProcess", (order) =>
+        {
+            if (ordersInProcess.Any(x => x.Currency == order.Currency))
+            {
+                var index = ordersInProcess.IndexOf(ordersInProcess.First(x => x.Currency == order.Currency));
+                if (index != -1)
+                {
+                    ordersInProcess[index] = order;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                ordersInProcess.Add(order);
+                StateHasChanged();
+            }
+
+        });
+
+        hubConnection.On<OrderInProcess>("NotifyCloseOrderProcess", (order) =>
+        {
+            var index = ordersInProcess.IndexOf(ordersInProcess.First(x => x.Currency == order.Currency));
+            if (index != -1)
+            {
+                ordersInProcess.RemoveAt(index);
+                StateHasChanged();
+            }
+        });
+
+        hubConnection.On<List<WalletCurrency>>("NotifyWallet", (walletStatuses) =>
+        {
+            walletCurrencies = walletStatuses;
             StateHasChanged();
         });
 
@@ -175,12 +232,13 @@ else
             };
         await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
         userCreated = true;
+        await hubConnection.SendAsync("RegisterUser", user);
         StateHasChanged();
     }
 
     private async Task AddUSDT()
     {
-        double ammount = Double.Parse(usdtToWallet, NumberStyles.None);
+        double ammount = Convert.ToDouble(usdtToWallet);
         var usdt = new Usdt
             {
                 UserId = user.Id,
