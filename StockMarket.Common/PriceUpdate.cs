@@ -11,7 +11,7 @@ namespace StockMarket.Common
         public string Currency { get; set; }
 
         [JsonProperty("amount")]
-        public string Amount { get; set; }
+        public double Amount { get; set; }
     }
 
     public class PriceUpdate

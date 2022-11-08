@@ -13,9 +13,9 @@ namespace StockMarket.API.Hubs
         {
         }
 
-        public async Task AllRates(string message)
+        public async Task AllRates(PriceUpdate priceUpdate)
         {
-            await Clients.Group("all-rates").SendAsync("SendAllRates", message);
+            await Clients.Group("all-rates").SendAsync("SendAllRates", priceUpdate);
         }
 
         public async Task RegisterUser(User user)

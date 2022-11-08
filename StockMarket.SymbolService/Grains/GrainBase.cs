@@ -11,7 +11,6 @@ namespace StockMarket.SymbolService.Grains
     public class GrainBase : Grain
     {
         public const string StockEndpoint = "https://api.coinbase.com/v2/prices/";
-        public readonly HttpClient _httpClient = new();
         public HubConnection hubConnection;
     }
 }

@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using Binance.Client.Websocket.Client;
+using Binance.Client.Websocket.Subscriptions;
+using Binance.Client.Websocket.Websockets;
+using Binance.Client.Websocket;
+using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using Orleans;
 using Orleans.Concurrency;
@@ -19,9 +23,9 @@ namespace StockMarket.SymbolService.Grains
 
             await ConnectToHub();
 
-            await UpdatePrice(allCurrencies);
+            await UpdateBinancePrice(allCurrencies);
             var timer = RegisterTimer(
-                                        UpdatePrice,
+                                        UpdateBinancePrice,
                                         allCurrencies,
                                         TimeSpan.FromSeconds(1),
                                         TimeSpan.FromSeconds(1));
@@ -30,33 +34,43 @@ namespace StockMarket.SymbolService.Grains
         }
 
 
-        private async Task UpdatePrice(object allCurrencies)
+        private async Task UpdateBinancePrice(object allCurrencies)
         {
-            if(hubConnection.State == HubConnectionState.Disconnected)
+            var url = BinanceValues.ApiWebsocketUrl;
+            var exitEvent = new ManualResetEvent(false);
+            using (var communicator = new BinanceWebsocketCommunicator(url))
             {
-                await ConnectToHub();
+                using (var client = new BinanceWebsocketClient(communicator))
+                {
+                    client.Streams.TradesStream.Subscribe(async response =>
+                    {
+
+                        var trade = response.Data;
+                        var priceUpdate = new PriceUpdate
+                        {
+                            Data = new Data
+                            {
+                                Amount = trade.Price,
+                                Base = trade.Symbol.Replace("USDT", ""),
+                                Currency = "USDT"
+                            }
+                        };
+                        await SendAllRates(priceUpdate);
+                    });
+
+                    List<SubscriptionBase> subscriptions = new List<SubscriptionBase>();
+                    List<string> currencies = new Currencies().CurrenciesInUse;
+                    foreach (var currency in currencies)
+                    {
+                        subscriptions.Add(new TradeSubscription($"{currency.ToLower()}usdt"));
+                    }
+
+                    client.SetSubscriptions(subscriptions.ToArray());
+                    await communicator.Start();
+                    exitEvent.WaitOne(TimeSpan.FromSeconds(3));
+                }
             }
-            List<string> currencies = new Currencies().CurrenciesInUse;
-            List<PriceUpdate> allRates = new List<PriceUpdate>();
-            foreach (var stock in currencies)
-            {
-                _price = await GetPriceQuote(stock);
-                allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
-            }
-            var dataRates = JsonConvert.SerializeObject(allRates);
-            await SendAllRates(dataRates);
-
         }
-
-        private async Task<string> GetPriceQuote(string stock)
-        {
-            using var resp =
-                await _httpClient.GetAsync(
-                    $"{StockEndpoint}{stock}-USD/buy");
-
-            return await resp.Content.ReadAsStringAsync();
-        }
-
         private async Task ConnectToHub()
         {
             hubConnection = new HubConnectionBuilder()
@@ -66,12 +80,17 @@ namespace StockMarket.SymbolService.Grains
             await hubConnection.StartAsync();
         }
 
-        public async Task SendAllRates(string message)
+        public async Task SendAllRates(PriceUpdate priceUpdate)
         {
-            await hubConnection.SendAsync("AllRates", message);
+            if(hubConnection.State == HubConnectionState.Disconnected || hubConnection.State == HubConnectionState.Reconnecting)
+            {
+                await ConnectToHub();
+            }
+            await hubConnection.SendAsync("AllRates", priceUpdate);
         }
 
-        public Task<string> GetSymbolsPrice() => Task.FromResult(_price);
+        public  Task GetSymbolsPrice() => Task.FromResult(_price);
+        
 
 
     }
