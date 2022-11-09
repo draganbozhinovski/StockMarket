@@ -67,7 +67,7 @@ namespace StockMarket.SymbolService.Grains
 
                     client.SetSubscriptions(subscriptions.ToArray());
                     await communicator.Start();
-                    exitEvent.WaitOne(TimeSpan.FromSeconds(3));
+                    exitEvent.WaitOne(TimeSpan.FromMilliseconds(2));
                 }
             }
         }

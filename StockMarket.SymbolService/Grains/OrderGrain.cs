@@ -16,24 +16,24 @@ namespace StockMarket.SymbolService.Grains
         private IUserGrain? _userGrain;
         private Uri _url = new Uri("https://localhost:7015/notificationhub");
         private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        IDisposable _timer;
 
         public override async Task OnActivateAsync()
         {
 
             await ConnectToHub();
+            _timer = RegisterTimer(UpdateBinancePrice,
+                                        this,
+                                        TimeSpan.FromSeconds(1),
+                                        TimeSpan.FromSeconds(1));
 
             await base.OnActivateAsync();
         }
 
 
-        private async Task UpdateBinancePrice(Order order)
+        private async Task UpdateBinancePrice(Object _)
         {
             var exitEvent = new ManualResetEvent(false);
-
-            var usdtToRemove = order.Bid * order.NumberOf;
-            await _userGrain.RemoveUsdt(usdtToRemove);
-            var walltetStatus = await _userGrain.GetWallet();
-            await NotifyWallet(walltetStatus, order.User);
 
             var url = BinanceValues.ApiWebsocketUrl;
             using (var communicator = new BinanceWebsocketCommunicator(url))
@@ -56,10 +56,11 @@ namespace StockMarket.SymbolService.Grains
                                 }
                             };
 
-                            var stopProcess = await ProcessOrder(order, priceUpdate);
+                            var stopProcess = await ProcessOrder(priceUpdate);
                             if (stopProcess)
                             {
-                                exitEvent.WaitOne();
+                                _timer.Dispose();
+                                exitEvent.WaitOne(TimeSpan.FromMilliseconds(1));
                             }
                             Console.WriteLine(JsonConvert.SerializeObject(priceUpdate));
                         }
@@ -72,36 +73,36 @@ namespace StockMarket.SymbolService.Grains
 
                     List<SubscriptionBase> subscriptions = new List<SubscriptionBase>();
 
-                    subscriptions.Add(new TradeSubscription($"{order.Currency.ToString().ToLower()}usdt"));
+                    subscriptions.Add(new TradeSubscription($"{_order.Currency.ToString().ToLower()}usdt"));
 
 
                     client.SetSubscriptions(subscriptions.ToArray());
                     await communicator.Start();
-                    exitEvent.WaitOne(TimeSpan.FromDays(3));
+                    exitEvent.WaitOne(TimeSpan.FromMilliseconds(2));
                 }
             }
         }
 
-        private async Task<bool> ProcessOrder(Order order, PriceUpdate price)
+        private async Task<bool> ProcessOrder(PriceUpdate price)
         {
 
             await NotifyOrder("NotifyOrderProcess", new OrderInProcess
             {
-                Bid = order.Bid,
-                Currency = order.Currency,
-                Id = order.Id,
-                NumberOf = order.NumberOf,
-                User = order.User,
+                Bid = _order.Bid,
+                Currency = _order.Currency,
+                Id = _order.Id,
+                NumberOf = _order.NumberOf,
+                User = _order.User,
                 CurrentAmmount = price.Data.Amount
             });
 
-            if (price.Data.Amount <= order.Bid)
+            if (price.Data.Amount <= _order.Bid)
             {
-                //minus for processing the order to the platform account with observable                    
+                //minus for processing the _order to the platform account with observable                    
                 var currencyToAdd = new WalletCurrency
                 {
-                    Ammount = order.NumberOf,
-                    Currency = order.Currency
+                    Ammount = _order.NumberOf,
+                    Currency = _order.Currency
                 };
                 await _userGrain.AddToWallet(currencyToAdd);
 
@@ -109,17 +110,17 @@ namespace StockMarket.SymbolService.Grains
 
                 await NotifyOrder("NotifyCloseOrderProcess", new OrderInProcess
                 {
-                    Bid = order.Bid,
-                    Currency = order.Currency,
-                    Id = order.Id,
-                    NumberOf = order.NumberOf,
-                    User = order.User,
+                    Bid = _order.Bid,
+                    Currency = _order.Currency,
+                    Id = _order.Id,
+                    NumberOf = _order.NumberOf,
+                    User = _order.User,
                     CurrentAmmount = price.Data.Amount
                 });
 
 
                 var walltetStatusAfterOrder = await _userGrain.GetWallet();
-                await NotifyWallet(walltetStatusAfterOrder, order.User);
+                await NotifyWallet(walltetStatusAfterOrder, _order.User);
                 return true;
             }
             return false;
@@ -148,19 +149,19 @@ namespace StockMarket.SymbolService.Grains
 
         public async Task NotifyWallet(List<WalletCurrency> walletCurrencies, User user)
         {
-            if (hubConnection.State == HubConnectionState.Disconnected || hubConnection.State == HubConnectionState.Reconnecting)
-            {
-                await ConnectToHub();
-            }
             await hubConnection.SendAsync("NotifyWallet", walletCurrencies, user);
         }
 
 
-        public Task CreateOrder(Order order)
+        public async Task CreateOrder(Order order)
         {
             _order = order;
             _userGrain = GrainFactory.GetGrain<IUserGrain>(_order.User.Id);
-            return UpdateBinancePrice(order); ;
+            var usdtToRemove = _order.Bid * _order.NumberOf;
+            await _userGrain.RemoveUsdt(usdtToRemove);
+            var walltetStatus = await _userGrain.GetWallet();
+            await NotifyWallet(walltetStatus, _order.User);
+            await Task.Delay(1);
         }
 
 
