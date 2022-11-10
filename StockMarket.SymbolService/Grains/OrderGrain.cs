@@ -140,10 +140,6 @@ namespace StockMarket.SymbolService.Grains
 
         public async Task NotifyOrder(string method, OrderInProcess orderInProcess)
         {
-            if (hubConnection.State == HubConnectionState.Disconnected || hubConnection.State == HubConnectionState.Reconnecting)
-            {
-                await ConnectToHub();
-            }
             await hubConnection.SendAsync("NotifyOrder", method, orderInProcess);
         }
 

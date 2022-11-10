@@ -166,23 +166,9 @@ else
         .WithUrl(url)
         .Build();
 
-        hubConnection.On<PriceUpdate>("SendAllRates", (priceUpdate) =>
+        hubConnection.On<List<PriceUpdate>>("SendAllRates", (priceUpdates) =>
         {
-            if (priceUpdates.Any(x => x.Data.Base == priceUpdate.Data.Base))
-            {
-                var index = priceUpdates.IndexOf(priceUpdates.First(x => x.Data.Base == priceUpdate.Data.Base));
-                if (index != -1)
-                {
-                    priceUpdates[index] = priceUpdate;
-                    StateHasChanged();
-                }
-            }
-            else
-            {
-                priceUpdates.Add(priceUpdate);
-                StateHasChanged();
-            }
-
+            this.priceUpdates = priceUpdates;
         });
 
         hubConnection.On<OrderInProcess>("NotifyOrderProcess", (order) =>

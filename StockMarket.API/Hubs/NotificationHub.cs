@@ -2,6 +2,7 @@
 using Orleans;
 using StockMarket.Common;
 using System.Reflection;
+using System.Threading.Channels;
 using System.Xml.Linq;
 
 namespace StockMarket.API.Hubs
@@ -13,9 +14,18 @@ namespace StockMarket.API.Hubs
         {
         }
 
-        public async Task AllRates(PriceUpdate priceUpdate)
+        public async Task StreamAllRates(string streamName, IAsyncEnumerable<PriceUpdate> stream)
         {
-            await Clients.Group("all-rates").SendAsync("SendAllRates", priceUpdate);
+            Console.WriteLine($"Receive stream {streamName}");
+            await foreach (var item in stream)
+            {
+                //_logger.LogTrace($"received {item}");
+            }
+        }
+
+        public async Task AllRates(List<PriceUpdate> priceUpdates)
+        {
+            await Clients.Group("all-rates").SendAsync("SendAllRates", priceUpdates);
         }
 
         public async Task RegisterUser(User user)

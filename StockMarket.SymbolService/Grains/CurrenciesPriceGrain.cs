@@ -16,6 +16,7 @@ namespace StockMarket.SymbolService.Grains
     {
         private Uri _url = new Uri("https://localhost:7015/notificationhub");
         private string _price = null!;
+        private List<PriceUpdate> priceUpdates = new List<PriceUpdate>();
         public override async Task OnActivateAsync()
         {
             string allCurrencies;
@@ -34,6 +35,7 @@ namespace StockMarket.SymbolService.Grains
         }
 
 
+
         private async Task UpdateBinancePrice(object allCurrencies)
         {
             var url = BinanceValues.ApiWebsocketUrl;
@@ -44,7 +46,6 @@ namespace StockMarket.SymbolService.Grains
                 {
                     client.Streams.TradesStream.Subscribe(async response =>
                     {
-
                         var trade = response.Data;
                         var priceUpdate = new PriceUpdate
                         {
@@ -55,7 +56,10 @@ namespace StockMarket.SymbolService.Grains
                                 Currency = "USDT"
                             }
                         };
-                        await SendAllRates(priceUpdate);
+                        priceUpdates.Add(priceUpdate);
+
+                        await SendAllRates();
+
                     });
 
                     List<SubscriptionBase> subscriptions = new List<SubscriptionBase>();
@@ -67,7 +71,7 @@ namespace StockMarket.SymbolService.Grains
 
                     client.SetSubscriptions(subscriptions.ToArray());
                     await communicator.Start();
-                    exitEvent.WaitOne(TimeSpan.FromMilliseconds(2));
+                    exitEvent.WaitOne(TimeSpan.FromSeconds(1));
                 }
             }
         }
@@ -80,17 +84,17 @@ namespace StockMarket.SymbolService.Grains
             await hubConnection.StartAsync();
         }
 
-        public async Task SendAllRates(PriceUpdate priceUpdate)
+        public async Task SendAllRates()
         {
-            if(hubConnection.State == HubConnectionState.Disconnected || hubConnection.State == HubConnectionState.Reconnecting)
+            if (priceUpdates.Count >= 100)
             {
-                await ConnectToHub();
+                await hubConnection.SendAsync("AllRates", priceUpdates);
+                priceUpdates.Clear();
             }
-            await hubConnection.SendAsync("AllRates", priceUpdate);
         }
 
-        public  Task GetSymbolsPrice() => Task.FromResult(_price);
-        
+        public Task GetSymbolsPrice() => Task.FromResult(_price);
+
 
 
     }
