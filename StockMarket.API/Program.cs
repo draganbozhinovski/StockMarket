@@ -23,6 +23,7 @@ builder.Services.AddSingleton<IGrainFactory>(
     sp => sp.GetService<ClusterClientHostedService>().Client);
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 
 var app = builder.Build();

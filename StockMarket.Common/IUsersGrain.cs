@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace StockMarket.Common
 {
-    public interface IOrderGrain : IGrainWithGuidKey
+    public interface IUsersGrain : IGrainWithIntegerKey
     {
-        Task CreateOrder(Order order);
-        Task CancelOrder();
+        Task AddUser(User user);
+        Task<User> GetUser(string name);
+        Task<IEnumerable<User>> GetAllUsers();
     }
 }

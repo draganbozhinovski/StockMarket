@@ -19,8 +19,18 @@ namespace StockMarket.API.Services
 
         public async Task<User> CreateUser(User user)
         {
-            var grain = _client.GetGrain<IUserGrain>(user.Id);
-            return await grain.CreateUser(user.Name);
+            var existingUsersGrain = _client.GetGrain<IUsersGrain>(0);
+            var existingUser = await existingUsersGrain.GetUser(user.Name);
+            if (existingUser != null)
+            {
+                return existingUser;
+            }
+            else
+            {
+                user.Id = Guid.NewGuid();
+                var userGrain = _client.GetGrain<IUserGrain>(user.Id);
+                return await userGrain.CreateUser(user.Name);
+            }
         }
 
         public async Task<List<WalletCurrency>> GetWallet(Guid userId)
@@ -28,6 +38,8 @@ namespace StockMarket.API.Services
             var grain = _client.GetGrain<IUserGrain>(userId);
             return await grain.GetWallet();
         }
+
+
 
 
     }

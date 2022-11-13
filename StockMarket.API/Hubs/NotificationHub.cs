@@ -13,9 +13,9 @@ namespace StockMarket.API.Hubs
         {
         }
 
-        public async Task AllRates(string message)
+        public async Task AllRates(List<PriceUpdate> priceUpdates)
         {
-            await Clients.Group("all-rates").SendAsync("SendAllRates", message);
+            await Clients.Group("all-rates").SendAsync("SendAllRates", priceUpdates);
         }
 
         public async Task RegisterUser(User user)
@@ -50,8 +50,9 @@ namespace StockMarket.API.Hubs
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            await base.OnDisconnectedAsync(exception);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, "all-rates");
+            connectedUsers.Remove(Context.ConnectionId);
+            await base.OnDisconnectedAsync(exception);
         }
 
         public Task SendMessageToGroup(string groupname, string sender, string message)

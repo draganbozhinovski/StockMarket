@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Orleans;
+using StockMarket.API.Services;
 using StockMarket.Common;
 using System.Text;
 
@@ -10,20 +11,25 @@ namespace StockMarket.API.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
-        private readonly IClusterClient _client;
-        public OrderController(IClusterClient client)
+        private readonly IOrderService _orderService;
+        public OrderController(IOrderService orderService)
         {
-            _client = client;
+            _orderService = orderService;
         }
 
 
         [HttpPost]
-        [Route("createorder")]
+        [Route("create")]
         public async Task Create([FromBody] Order order)
         {
-            var grain = _client.GetGrain<IOrderGrain>(order.Id);
+            await _orderService.CreateOrder(order);
+        }
 
-            await Task.Factory.StartNew(() => Task.FromResult(grain.CreateOrder(order).ConfigureAwait(false)));
+        [HttpPost]
+        [Route("cancel")]
+        public async Task Cancel([FromBody] Order order)
+        {
+            await _orderService.CancelOrder(order);
         }
 
 

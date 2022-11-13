@@ -1,56 +1,64 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using Orleans;
+using Orleans.Concurrency;
 using StockMarket.Common;
 using System.Globalization;
 
 namespace StockMarket.SymbolService.Grains
 {
+    [Reentrant]
     public class OrderGrain : GrainBase, IOrderGrain
     {
         private bool _processStatus = true;
         private Order? _order;
         private IUserGrain? _userGrain;
-        private Uri _url = new Uri("https://localhost:7015/notificationhub");
+        private double reservedUSDT = 0;
 
         public override async Task OnActivateAsync()
         {
             await ConnectToHub();
         }
-        private async Task ProcessOrder(Order order)
+        private async Task ProcessOrder(bool stopped)
         {
             if (hubConnection.State == HubConnectionState.Disconnected)
             {
                 await ConnectToHub();
             }
 
-            var usdtToRemove = order.Bid * order.NumberOf;
-            await _userGrain.RemoveUsdt(usdtToRemove);
-            var walltetStatus = await _userGrain.GetWallet();
-            await NotifyWallet(walltetStatus, order.User);
+            if (!stopped)
+            {
+                await OrderStart();
+            }
+            else
+            {
+                await OrderStop();
+                return;
+            }
 
             while (_processStatus)
             {
-                var price = await GetPriceQuote(order.Currency.ToString());
+                var price = await GetPriceQuote(_order.Currency.ToString());
                 var stockData = JsonConvert.DeserializeObject<PriceUpdate>(price);
 
                 await NotifyOrder("NotifyOrderProcess", new OrderInProcess
                 {
-                    Bid = order.Bid,
-                    Currency = order.Currency,
-                    Id = order.Id,
-                    NumberOf = order.NumberOf,
-                    User = order.User,
+                    Bid = _order.Bid,
+                    Currency = _order.Currency,
+                    Id = _order.Id,
+                    NumberOf = _order.NumberOf,
+                    User = _order.User,
                     CurrentAmmount = Convert.ToDouble(stockData?.Data.Amount)
-                });               
+                });
 
-                if (Convert.ToDouble(stockData?.Data.Amount) <= order.Bid)
+                if (Convert.ToDouble(stockData?.Data.Amount) <= _order.Bid)
                 {
-                    //minus for processing the order to the platform account with observable                    
+                    _processStatus = false;
+                    //minus for processing the _order to the platform account with observable                    
                     var currencyToAdd = new WalletCurrency
                     {
-                        Ammount = order.NumberOf,
-                        Currency = order.Currency
+                        Ammount = _order.NumberOf,
+                        Currency = _order.Currency
                     };
                     await _userGrain.AddToWallet(currencyToAdd);
 
@@ -58,21 +66,47 @@ namespace StockMarket.SymbolService.Grains
 
                     await NotifyOrder("NotifyCloseOrderProcess", new OrderInProcess
                     {
-                        Bid = order.Bid,
-                        Currency = order.Currency,
-                        Id = order.Id,
-                        NumberOf = order.NumberOf,
-                        User = order.User,
+                        Bid = _order.Bid,
+                        Currency = _order.Currency,
+                        Id = _order.Id,
+                        NumberOf = _order.NumberOf,
+                        User = _order.User,
                         CurrentAmmount = Convert.ToDouble(stockData?.Data.Amount)
                     });
 
 
                     var walltetStatusAfterOrder = await _userGrain.GetWallet();
-                    await NotifyWallet(walltetStatusAfterOrder, order.User);
+                    await NotifyWallet(walltetStatusAfterOrder, _order.User);
+                    break;
 
-                    _processStatus = false;
                 }
             }
+        }
+
+        private async Task OrderStart()
+        {
+            reservedUSDT = _order.Bid * _order.NumberOf;
+            await _userGrain.RemoveUsdt(reservedUSDT);
+            var walltetStatus = await _userGrain.GetWallet();
+            await NotifyWallet(walltetStatus, _order.User);
+        }
+
+        private async Task OrderStop()
+        {
+            _processStatus = false;
+            await _userGrain.AddUSDT(reservedUSDT);
+            reservedUSDT = 0;
+            var walltetStatus = await _userGrain.GetWallet();
+            await NotifyWallet(walltetStatus, _order.User);
+            await NotifyOrder("NotifyCloseOrderProcess", new OrderInProcess
+            {
+                Bid = _order.Bid,
+                Currency = _order.Currency,
+                Id = _order.Id,
+                NumberOf = _order.NumberOf,
+                User = _order.User,
+                CurrentAmmount = 0
+            });
         }
 
         private async Task<string> GetPriceQuote(string currency)
@@ -87,7 +121,7 @@ namespace StockMarket.SymbolService.Grains
         private async Task ConnectToHub()
         {
             hubConnection = new HubConnectionBuilder()
-                .WithUrl(_url)
+                .WithUrl(_hubUrl)
                 .Build();
 
             await hubConnection.StartAsync();
@@ -104,11 +138,17 @@ namespace StockMarket.SymbolService.Grains
         }
 
 
-        public Task CreateOrder(Order order)
+        public async Task CreateOrder(Order order)
         {
             _order = order;
             _userGrain = GrainFactory.GetGrain<IUserGrain>(_order.User.Id);
-            return ProcessOrder(order); ;
+            await ProcessOrder(stopped: false); ;
+        }
+
+        public async Task CancelOrder()
+        {
+            await ProcessOrder(stopped: true);
+
         }
 
 

@@ -10,7 +10,6 @@ namespace StockMarket.SymbolService.Grains
     [StatelessWorker(1)]
     public class CurrenciesPriceGrain : GrainBase, ICurrenciesPriceGrain
     {
-        private Uri _url = new Uri("https://localhost:7015/notificationhub");
         private string _price = null!;
         public override async Task OnActivateAsync()
         {
@@ -43,8 +42,7 @@ namespace StockMarket.SymbolService.Grains
                 _price = await GetPriceQuote(stock);
                 allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
             }
-            var dataRates = JsonConvert.SerializeObject(allRates);
-            await SendAllRates(dataRates);
+            await SendAllRates(allRates);
 
         }
 
@@ -60,15 +58,15 @@ namespace StockMarket.SymbolService.Grains
         private async Task ConnectToHub()
         {
             hubConnection = new HubConnectionBuilder()
-                .WithUrl(_url)
+                .WithUrl(_hubUrl)
                 .Build();
 
             await hubConnection.StartAsync();
         }
 
-        public async Task SendAllRates(string message)
+        public async Task SendAllRates(List<PriceUpdate> priceUpdates)
         {
-            await hubConnection.SendAsync("AllRates", message);
+            await hubConnection.SendAsync("AllRates", priceUpdates);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);

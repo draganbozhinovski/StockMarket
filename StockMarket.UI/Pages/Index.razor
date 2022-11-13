@@ -7,12 +7,12 @@
 @implements IAsyncDisposable
 @inject HttpClient Http
 
-<PageTitle>Stock Symbols Price</PageTitle>
+<PageTitle>Crypto Symbols Price</PageTitle>
 
 <div class="container">
     <div class="row">
         <div class="col-md-6">
-            <h1>Coin Symbols Price</h1>
+            <h1>Crypto Symbols Price</h1>
         </div>
         <div class="col-md-6">
             @if (userCreated)
@@ -38,7 +38,7 @@ else
                         <tr>
                             <th>Base</th>
                             <th>Currency</th>
-                            <th>Amount USDT</th>
+                            <th>Rpice</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -70,14 +70,14 @@ else
                 @if (!userCreated)
                 {
                     <div class="col">
-                        <h2>Create user, to strart trading</h2>
+                        <h2>Register/LogIn, for trading</h2>
                         <hr />
                         <div class="form-group">
                             <label>User Name</label>
                             <input type="text" class="form-control" @bind="@userName" @oninput="OnUserNameInputEvent" />
                         </div>
                         <hr>
-                        <button class="btn btn-primary" @onclick="CreateUser">Create</button>
+                        <button class="btn btn-primary" @onclick="CreateUser">Register/LogIn</button>
                     </div>
                 }
                 else
@@ -89,7 +89,7 @@ else
                             <div class="input-group-prepend">
                                 <span class="input-group-text">$</span>
                             </div>
-                            <input type="number" class="form-control" @bind="@usdtToWallet" @oninput="OnUSDTToInputEvent" />
+                            <input type="number" class="form-control" @bind="@usdtToWallet" />
                             <div class="input-group-append">
                                 <button class="btn btn-primary" @onclick="AddUSDT">Transfer</button>
                             </div>
@@ -111,6 +111,9 @@ else
                                             <li class="list-group-item"><b>@orderInProcess.Bid</b></li>
                                             <li class="list-group-item">@orderInProcess.NumberOf</li>
                                         </ul>
+                                        <div>
+                                            <button class="btn btn-primary" @onclick="() => CancelOrder(orderInProcess)">Cancel</button>
+                                        </div>
                                     </div>
                                 </div>
                             }
@@ -166,17 +169,18 @@ else
         .WithUrl(url)
         .Build();
 
-        hubConnection.On<string>("SendAllRates", (message) =>
+        hubConnection.On<List<PriceUpdate>>("SendAllRates", (incommingPriceUpdates) =>
         {
-            priceUpdates = JsonConvert.DeserializeObject<List<PriceUpdate>>(message);
+            this.priceUpdates = incommingPriceUpdates;
             StateHasChanged();
         });
 
         hubConnection.On<OrderInProcess>("NotifyOrderProcess", (order) =>
         {
-            if (ordersInProcess.Any(x => x.Currency == order.Currency))
+            if (ordersInProcess.Any(x => x.Currency == order.Currency && x.NumberOf == order.NumberOf))
             {
-                var index = ordersInProcess.IndexOf(ordersInProcess.First(x => x.Currency == order.Currency));
+                var index = ordersInProcess.IndexOf(ordersInProcess.First(x => x.Currency == order.Currency 
+                    && x.NumberOf == order.NumberOf));
                 if (index != -1)
                 {
                     ordersInProcess[index] = order;
@@ -219,7 +223,7 @@ else
     }
 
     private void OnUserNameInputEvent(ChangeEventArgs changeEvent) => userName = (string)changeEvent.Value;
-    private void OnUSDTToInputEvent(ChangeEventArgs changeEvent) => usdtToWallet = (string)changeEvent.Value;
+    //private void OnUSDTToInputEvent(ChangeEventArgs changeEvent) => usdtToWallet = (string)changeEvent.Value;
     private void OnBidInputEvent(ChangeEventArgs changeEvent) => bid = (string)changeEvent.Value;
     private void OnNumberOfInputEvent(ChangeEventArgs changeEvent) => numberOf = (string)changeEvent.Value;
 
@@ -227,12 +231,13 @@ else
     {
         user = new User
             {
-                Name = userName,
-                Id = Guid.NewGuid()
+                Name = userName
             };
-        await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
+        var response = await Http.PostAsJsonAsync<User>($"{apiUrl}/api/User/Create", user);
+        user = JsonConvert.DeserializeObject<User>(await response.Content.ReadAsStringAsync());
         userCreated = true;
         await hubConnection.SendAsync("RegisterUser", user);
+        await GetWallet();
         StateHasChanged();
     }
 
@@ -255,25 +260,23 @@ else
 
     private async Task StartOrder(PriceUpdate priceUpdate)
     {
-        try
-        {
-            var order = new Order
-                {
-                    Bid = Double.Parse(bid, NumberStyles.None),
-                    Currency = (Currency)Enum.Parse(typeof(Currency), priceUpdate.Data.Base),
-                    NumberOf = Double.Parse(numberOf, NumberStyles.None),
-                    User = user,
-                    Id = Guid.NewGuid()
-                };
+        var order = new Order
+            {
+                Bid = Double.Parse(bid, NumberStyles.None),
+                Currency = (Currency)Enum.Parse(typeof(Currency), priceUpdate.Data.Base),
+                NumberOf = Double.Parse(numberOf, NumberStyles.None),
+                User = user,
+                Id = Guid.NewGuid()
+            };
 
-            await Http.PostAsJsonAsync($"{apiUrl}/api/Order/createorder", order);
-            bid = "";
-            numberOf = "";
-            StateHasChanged();
-        }
-        catch (Exception e)
-        {
+        await Http.PostAsJsonAsync($"{apiUrl}/api/Order/create", order);
+        bid = "";
+        numberOf = "";
+        StateHasChanged();
+    }
 
-        }
+    private async Task CancelOrder(Order orderInProcess)
+    {
+        await Http.PostAsJsonAsync($"{apiUrl}/api/Order/cancel", orderInProcess);
     }
 }

@@ -13,5 +13,6 @@ namespace StockMarket.SymbolService.Grains
         public const string StockEndpoint = "https://api.coinbase.com/v2/prices/";
         public readonly HttpClient _httpClient = new();
         public HubConnection hubConnection;
+        public Uri _hubUrl = new Uri("https://localhost:7015/notificationhub");
     }
 }

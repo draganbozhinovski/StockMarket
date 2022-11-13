@@ -7,17 +7,20 @@ namespace StockMarket.SymbolService.Grains
     {
         private User? user;
         private IWalletGrain? _walletGrain;
+        private IUsersGrain? _usersGrain;
         public override Task OnActivateAsync()
         {
             user = new User();
             user.Id = this.GetPrimaryKey();
             _walletGrain = GrainFactory.GetGrain<IWalletGrain>(user.Id);
+            _usersGrain = GrainFactory.GetGrain<IUsersGrain>(0);
             return base.OnActivateAsync();
         }
 
         public async Task<User> CreateUser(string name)
         {
             user.Name = name;
+            await _usersGrain.AddUser(user);
             return await Task.FromResult(user);
         }
 
@@ -29,9 +32,9 @@ namespace StockMarket.SymbolService.Grains
                 Currency = Currency.USDT
             };
 
-           var wallet = await _walletGrain?.AddToWallet(walletCurrency);
+            var wallet = await _walletGrain?.AddToWallet(walletCurrency);
 
-            return  wallet;
+            return wallet;
         }
 
         public async Task<List<WalletCurrency>> RemoveUsdt(double ammount)
