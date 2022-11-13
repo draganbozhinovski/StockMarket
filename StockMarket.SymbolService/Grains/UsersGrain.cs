@@ -1,5 +1,6 @@
 ﻿using Orleans;
 using StockMarket.Common;
+using StockMarket.Common.Models;
 
 namespace StockMarket.SymbolService.Grains
 {
@@ -26,7 +27,7 @@ namespace StockMarket.SymbolService.Grains
 
         public async Task<IEnumerable<User>> GetAllUsers()
         {
-            return await new Task<IEnumerable<User>>(() => _users);
+            return await Task.FromResult(_users);
         }
     }
 }

@@ -4,6 +4,7 @@ using Orleans;
 using Orleans.Concurrency;
 using Orleans.Runtime;
 using StockMarket.Common;
+using StockMarket.Common.Models;
 
 namespace StockMarket.SymbolService.Grains
 {

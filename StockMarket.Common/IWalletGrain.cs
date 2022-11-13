@@ -1,4 +1,5 @@
 ﻿using Orleans;
+using StockMarket.Common.Models;
 
 namespace StockMarket.Common
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StockMarket.API.Services;
-using StockMarket.Common;
+using StockMarket.Common.Models;
 
 namespace StockMarket.API.Controllers
 {

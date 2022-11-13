@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Orleans;
 using Orleans.Concurrency;
 using StockMarket.Common;
+using StockMarket.Common.Models;
 using System.Globalization;
 
 namespace StockMarket.SymbolService.Grains

@@ -47,6 +47,7 @@ app.UseCors(x => x
            .SetIsOriginAllowed(origin => true)
            .AllowCredentials());
 
+
 app.MapHub<NotificationHub>("/notificationHub");
 
 app.Run();

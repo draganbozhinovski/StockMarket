@@ -1,5 +1,6 @@
 ﻿using Orleans;
 using StockMarket.Common;
+using StockMarket.Common.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

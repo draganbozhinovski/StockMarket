@@ -1,4 +1,4 @@
-﻿using StockMarket.Common;
+﻿using StockMarket.Common.Models;
 
 namespace StockMarket.API.Services
 {

@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace StockMarket.Common
+namespace StockMarket.Common.Models
 {
     public class Data
     {

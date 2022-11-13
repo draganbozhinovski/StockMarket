@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Orleans;
-using StockMarket.Common;
+using StockMarket.Common.Models;
 using System.Reflection;
 using System.Xml.Linq;
 

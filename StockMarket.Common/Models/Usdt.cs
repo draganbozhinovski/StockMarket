@@ -1,4 +1,4 @@
-﻿namespace StockMarket.Common
+﻿namespace StockMarket.Common.Models
 {
     public class Usdt
     {

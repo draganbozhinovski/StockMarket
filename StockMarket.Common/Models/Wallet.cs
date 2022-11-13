@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StockMarket.Common
+namespace StockMarket.Common.Models
 {
     public class Wallet
     {

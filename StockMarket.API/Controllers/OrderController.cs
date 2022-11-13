@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Orleans;
 using StockMarket.API.Services;
-using StockMarket.Common;
+using StockMarket.Common.Models;
 using System.Text;
 
 namespace StockMarket.API.Controllers
