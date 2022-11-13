@@ -5,6 +5,7 @@ using Orleans.Concurrency;
 using Orleans.Runtime;
 using StockMarket.Common;
 using StockMarket.Common.Models;
+using StockMarket.SymbolService.Observers;
 
 namespace StockMarket.SymbolService.Grains
 {
@@ -12,12 +13,12 @@ namespace StockMarket.SymbolService.Grains
     public class CurrenciesPriceGrain : GrainBase, ICurrenciesPriceGrain
     {
         private string _price = null!;
+        INotifyObserver _observer;
         public override async Task OnActivateAsync()
         {
             string allCurrencies;
             this.GetPrimaryKey(out allCurrencies);
-
-            await ConnectToHub();
+            _observer = new NotifyObserver();
 
             await UpdatePrice(allCurrencies);
             var timer = RegisterTimer(
@@ -32,10 +33,6 @@ namespace StockMarket.SymbolService.Grains
 
         private async Task UpdatePrice(object allCurrencies)
         {
-            if(hubConnection.State == HubConnectionState.Disconnected)
-            {
-                await ConnectToHub();
-            }
             List<string> currencies = new Currencies().CurrenciesInUse;
             List<PriceUpdate> allRates = new List<PriceUpdate>();
             foreach (var stock in currencies)
@@ -43,7 +40,7 @@ namespace StockMarket.SymbolService.Grains
                 _price = await GetPriceQuote(stock);
                 allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
             }
-            await SendAllRates(allRates);
+            await _observer.Notify("AllRates", allRates);
 
         }
 
@@ -54,20 +51,6 @@ namespace StockMarket.SymbolService.Grains
                     $"{StockEndpoint}{stock}-USD/buy");
 
             return await resp.Content.ReadAsStringAsync();
-        }
-
-        private async Task ConnectToHub()
-        {
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(_hubUrl)
-                .Build();
-
-            await hubConnection.StartAsync();
-        }
-
-        public async Task SendAllRates(List<PriceUpdate> priceUpdates)
-        {
-            await hubConnection.SendAsync("AllRates", priceUpdates);
         }
 
         public Task<string> GetSymbolsPrice() => Task.FromResult(_price);

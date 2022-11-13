@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
-using Newtonsoft.Json;
-using Orleans;
+﻿using Newtonsoft.Json;
 using Orleans.Concurrency;
 using StockMarket.Common;
 using StockMarket.Common.Models;
-using System.Globalization;
+using StockMarket.SymbolService.Observers;
 
 namespace StockMarket.SymbolService.Grains
 {
@@ -15,18 +13,14 @@ namespace StockMarket.SymbolService.Grains
         private Order? _order;
         private IUserGrain? _userGrain;
         private double reservedUSDT = 0;
+        INotifyObserver _observer;
 
         public override async Task OnActivateAsync()
         {
-            await ConnectToHub();
+            _observer = new NotifyObserver();
         }
         private async Task ProcessOrder(bool stopped)
         {
-            if (hubConnection.State == HubConnectionState.Disconnected)
-            {
-                await ConnectToHub();
-            }
-
             if (!stopped)
             {
                 await OrderStart();
@@ -42,7 +36,7 @@ namespace StockMarket.SymbolService.Grains
                 var price = await GetPriceQuote(_order.Currency.ToString());
                 var stockData = JsonConvert.DeserializeObject<PriceUpdate>(price);
 
-                await NotifyOrder("NotifyOrderProcess", new OrderInProcess
+                await _observer.Notify("NotifyOrder", "NotifyOrderProcess", new OrderInProcess
                 {
                     Bid = _order.Bid,
                     Currency = _order.Currency,
@@ -65,7 +59,7 @@ namespace StockMarket.SymbolService.Grains
 
                     //notify all users for the orpdr processed with observable
 
-                    await NotifyOrder("NotifyCloseOrderProcess", new OrderInProcess
+                    await _observer.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
                     {
                         Bid = _order.Bid,
                         Currency = _order.Currency,
@@ -77,7 +71,7 @@ namespace StockMarket.SymbolService.Grains
 
 
                     var walltetStatusAfterOrder = await _userGrain.GetWallet();
-                    await NotifyWallet(walltetStatusAfterOrder, _order.User);
+                    await _observer.Notify("NotifyWallet", walltetStatusAfterOrder, _order.User);
                     break;
 
                 }
@@ -89,7 +83,7 @@ namespace StockMarket.SymbolService.Grains
             reservedUSDT = _order.Bid * _order.NumberOf;
             await _userGrain.RemoveUsdt(reservedUSDT);
             var walltetStatus = await _userGrain.GetWallet();
-            await NotifyWallet(walltetStatus, _order.User);
+            await _observer.Notify("NotifyWallet", walltetStatus, _order.User);
         }
 
         private async Task OrderStop()
@@ -97,9 +91,11 @@ namespace StockMarket.SymbolService.Grains
             _processStatus = false;
             await _userGrain.AddUSDT(reservedUSDT);
             reservedUSDT = 0;
+
             var walltetStatus = await _userGrain.GetWallet();
-            await NotifyWallet(walltetStatus, _order.User);
-            await NotifyOrder("NotifyCloseOrderProcess", new OrderInProcess
+            await _observer.Notify("NotifyWallet", walltetStatus, _order.User);
+
+            await _observer.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
             {
                 Bid = _order.Bid,
                 Currency = _order.Currency,
@@ -119,26 +115,6 @@ namespace StockMarket.SymbolService.Grains
             return await resp.Content.ReadAsStringAsync();
         }
 
-        private async Task ConnectToHub()
-        {
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(_hubUrl)
-                .Build();
-
-            await hubConnection.StartAsync();
-        }
-
-        public async Task NotifyOrder(string method, OrderInProcess orderInProcess)
-        {
-            await hubConnection.SendAsync("NotifyOrder", method, orderInProcess);
-        }
-
-        public async Task NotifyWallet(List<WalletCurrency> walletCurrencies, User user)
-        {
-            await hubConnection.SendAsync("NotifyWallet", walletCurrencies, user);
-        }
-
-
         public async Task CreateOrder(Order order)
         {
             _order = order;
@@ -149,7 +125,6 @@ namespace StockMarket.SymbolService.Grains
         public async Task CancelOrder()
         {
             await ProcessOrder(stopped: true);
-
         }
 
 

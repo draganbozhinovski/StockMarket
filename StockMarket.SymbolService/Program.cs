@@ -18,6 +18,7 @@ await Host.CreateDefaultBuilder(args)
                 x.Host = "*";
                 x.CounterUpdateIntervalMs = 1000;
             })
+            
             .AddMemoryGrainStorage("PubSubStore")
             .AddSimpleMessageStreamProvider("chat", options =>
             {
