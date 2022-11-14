@@ -5,7 +5,7 @@ using Orleans.Concurrency;
 using Orleans.Runtime;
 using StockMarket.Common;
 using StockMarket.Common.Models;
-using StockMarket.SymbolService.Observers;
+using StockMarket.SymbolService.HubClient;
 
 namespace StockMarket.SymbolService.Grains
 {
@@ -13,12 +13,12 @@ namespace StockMarket.SymbolService.Grains
     public class CurrenciesPriceGrain : GrainBase, ICurrenciesPriceGrain
     {
         private string _price = null!;
-        INotifyObserver _observer;
+        INotifier _notifier;
         public override async Task OnActivateAsync()
         {
             string allCurrencies;
             this.GetPrimaryKey(out allCurrencies);
-            _observer = new NotifyObserver();
+            _notifier = new Notifier();
 
             await UpdatePrice(allCurrencies);
             var timer = RegisterTimer(
@@ -40,7 +40,7 @@ namespace StockMarket.SymbolService.Grains
                 _price = await GetPriceQuote(stock);
                 allRates.Add(JsonConvert.DeserializeObject<PriceUpdate>(_price));
             }
-            await _observer.Notify("AllRates", allRates);
+            await _notifier.Notify("AllRates", allRates);
 
         }
 

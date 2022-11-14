@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using StockMarket.Common.Models;
 
-namespace StockMarket.SymbolService.Observers
+namespace StockMarket.SymbolService.HubClient
 {
-    public class NotifyObserver : INotifyObserver
+    public class Notifier : INotifier
     {
         public HubConnection hubConnection;
         public Uri _hubUrl = new Uri("https://localhost:7015/notificationhub");
-        public NotifyObserver()
+        public Notifier()
         {
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(_hubUrl)

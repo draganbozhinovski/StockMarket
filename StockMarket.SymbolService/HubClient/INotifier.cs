@@ -1,8 +1,8 @@
 ﻿using Orleans;
 
-namespace StockMarket.SymbolService.Observers
+namespace StockMarket.SymbolService.HubClient
 {
-    public interface INotifyObserver : IGrainObserver
+    public interface INotifier
     {
         Task Notify(string method, object message);
         Task Notify(string method, string clientMethod, object message);
