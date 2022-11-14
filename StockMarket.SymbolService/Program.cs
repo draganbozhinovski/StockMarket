@@ -2,10 +2,6 @@
 using Orleans;
 using Orleans.Hosting;
 
-
-
-
-
 await Host.CreateDefaultBuilder(args)
     .UseOrleans(siloBuilder =>
     {
@@ -18,8 +14,15 @@ await Host.CreateDefaultBuilder(args)
                 x.Host = "*";
                 x.CounterUpdateIntervalMs = 1000;
             })
-            
-            .AddMemoryGrainStorage("PubSubStore")
+            .AddAzureTableGrainStorage(
+                    name: "profileStore", 
+                    configureOptions: options =>
+                    {
+                        options.UseJson = true;
+                        options.ConfigureTableServiceClient("DefaultEndpointsProtocol=https;AccountName=stocksymbolservice;AccountKey=aM+XKkRgwu0ACb2kF8511TdmA2+B5IQxen5CIZVEEOq5Om0Lj1pTOmRXvnPt6e6p/vMMwHGoliAN+ASttOoYNg==");
+                    }
+            )
+            //.AddMemoryGrainStorage("PubSubStore")
             .AddSimpleMessageStreamProvider("chat", options =>
             {
                 options.FireAndForgetDelivery = true;

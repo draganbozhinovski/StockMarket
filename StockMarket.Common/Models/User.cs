@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace StockMarket.Common.Models
 {
+    [Serializable]
     public class User
     {
         public Guid Id { get; set; }

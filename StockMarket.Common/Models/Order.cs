@@ -1,5 +1,6 @@
 ﻿namespace StockMarket.Common.Models
 {
+    [Serializable]
     public class Order
     {
         public Guid Id { get; set; }
@@ -9,6 +10,7 @@
         public double Bid { get; set; }
     }
 
+    [Serializable]
     public class OrderInProcess : Order
     {
         public double CurrentAmmount { get; set; }

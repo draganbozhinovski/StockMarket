@@ -1,4 +1,5 @@
 ﻿using Orleans;
+using Orleans.Runtime;
 using StockMarket.Common;
 using StockMarket.Common.Models;
 
@@ -9,6 +10,8 @@ namespace StockMarket.SymbolService.Grains
         private User? user;
         private IWalletGrain? _walletGrain;
         private IUsersGrain? _usersGrain;
+
+        
         public override Task OnActivateAsync()
         {
             user = new User();
