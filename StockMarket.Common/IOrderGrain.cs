@@ -5,7 +5,7 @@ namespace StockMarket.Common
 {
     public interface IOrderGrain : IGrainWithGuidKey
     {
-        Task CreateOrder(Order order);
+        Task CreateOrder(Order order, bool isRehydrate);
         Task CancelOrder();
     }
 }

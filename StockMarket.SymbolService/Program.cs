@@ -21,12 +21,7 @@ await Host.CreateDefaultBuilder(args)
                         options.UseJson = true;
                         options.ConfigureTableServiceClient("DefaultEndpointsProtocol=https;AccountName=stocksymbolservice;AccountKey=aM+XKkRgwu0ACb2kF8511TdmA2+B5IQxen5CIZVEEOq5Om0Lj1pTOmRXvnPt6e6p/vMMwHGoliAN+ASttOoYNg==");
                     }
-            )
-            //.AddMemoryGrainStorage("PubSubStore")
-            .AddSimpleMessageStreamProvider("chat", options =>
-            {
-                options.FireAndForgetDelivery = true;
-            });
+            );
 
     })
     .RunConsoleAsync();

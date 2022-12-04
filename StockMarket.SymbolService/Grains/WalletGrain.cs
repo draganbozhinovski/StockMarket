@@ -1,49 +1,52 @@
 ﻿using Orleans;
+using Orleans.Runtime;
 using StockMarket.Common;
 using StockMarket.Common.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StockMarket.SymbolService.Grains
 {
     public class WalletGrain : Grain, IWalletGrain
     {
-        private List<WalletCurrency>? _walletCurrencies;
-        public override Task OnActivateAsync()
+        private readonly IPersistentState<List<WalletCurrency>> _wallet;
+
+        public WalletGrain(
+            [PersistentState("userWalet", "profileStore")]
+            IPersistentState<List<WalletCurrency>> wallet
+            )
         {
-            _walletCurrencies = new List<WalletCurrency>();
-            return base.OnActivateAsync();
+            _wallet = wallet;
         }
+
         public async Task<List<WalletCurrency>> AddToWallet(WalletCurrency walletCurrency)
         {
-            if (_walletCurrencies.Any(x => x.Currency == walletCurrency.Currency))
+            if (_wallet.State.Any(x => x.Currency == walletCurrency.Currency))
             {
 
-                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount += walletCurrency.Ammount;
-                return await Task.FromResult(_walletCurrencies);
+                _wallet.State.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount += walletCurrency.Ammount;
+                 await _wallet.WriteStateAsync();
+                return await Task.FromResult(_wallet.State);
             }
-
-            _walletCurrencies?.Add(walletCurrency);
-            return await Task.FromResult(_walletCurrencies);
+            _wallet.State.Add(walletCurrency);
+            await _wallet.WriteStateAsync();
+            return await Task.FromResult(_wallet.State);
         }
 
         public async Task<List<WalletCurrency>> RemoveFromWallet(WalletCurrency walletCurrency)
         {
-            if (_walletCurrencies.Any(x => x.Currency == walletCurrency.Currency))
+            if (_wallet.State.Any(x => x.Currency == walletCurrency.Currency))
             {
-                _walletCurrencies.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount -= walletCurrency.Ammount;
-                return await Task.FromResult(_walletCurrencies);
+                _wallet.State.FirstOrDefault(x => x.Currency == walletCurrency.Currency).Ammount -= walletCurrency.Ammount;
+                await _wallet.WriteStateAsync();
+                return await Task.FromResult(_wallet.State);
             }
-             _walletCurrencies?.Remove(walletCurrency);
-            return await Task.FromResult(_walletCurrencies);
+             _wallet.State.Remove(walletCurrency);
+            _wallet.WriteStateAsync();
+            return await Task.FromResult(_wallet.State);
         }
 
         public async Task<List<WalletCurrency>> GetWallet()
         {
-            return await Task.FromResult(_walletCurrencies);
+            return await Task.FromResult(_wallet.State);
         }
     }
 }
