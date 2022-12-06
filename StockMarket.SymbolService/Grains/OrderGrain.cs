@@ -32,6 +32,7 @@ namespace StockMarket.SymbolService.Grains
 
         public async Task CancelOrder()
         {
+            _processStatus = false;
             await _userOrdersGrain.RemoveUserOrder(_order);
             await ProcessOrder(stopped: true, false);
         }

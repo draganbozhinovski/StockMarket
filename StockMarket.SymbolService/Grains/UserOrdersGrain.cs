@@ -27,7 +27,8 @@ namespace StockMarket.SymbolService.Grains
         }
         public async Task RemoveUserOrder(Order order)
         {
-            _orders.State.Remove(order);
+            var stateOrder = _orders.State.FirstOrDefault(x=>x.Id == order.Id);
+            _orders.State.Remove(stateOrder);
             await _orders.WriteStateAsync();
         }
         public async Task<IEnumerable<Order>> GetUserOrders()
