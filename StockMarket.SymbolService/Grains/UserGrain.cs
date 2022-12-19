@@ -7,25 +7,24 @@ namespace StockMarket.SymbolService.Grains
 {
     public class UserGrain : Grain, IUserGrain
     {
-        private User? user;
-        private IWalletGrain? _walletGrain;
-        private IUsersGrain? _usersGrain;
+        private User? _user;
+        private IWalletGrain _walletGrain;
+        private IUsersGrain _usersGrain;
 
         
         public override Task OnActivateAsync()
         {
-            user = new User();
-            user.Id = this.GetPrimaryKey();
-            _walletGrain = GrainFactory.GetGrain<IWalletGrain>(user.Id);
-            _usersGrain = GrainFactory.GetGrain<IUsersGrain>(0);
+            _user = new User();
+            _walletGrain = WalletGrainFactory.GetGrain<IWalletGrain>(_user.Id);
+            _usersGrain = UsersGrainFactory.GetGrain<IUsersGrain>(0);
             return base.OnActivateAsync();
         }
 
-        public async Task<User> CreateUser(string name)
+        public async Task<User> CreateUser(User user)
         {
-            user.Name = name;
-            await _usersGrain.AddUser(user);
-            return await Task.FromResult(user);
+            _user = user;
+            await _usersGrain.AddUser(_user);
+            return await Task.FromResult(_user);
         }
 
         public async Task<List<WalletCurrency>> AddUSDT(double ammount)
@@ -36,7 +35,7 @@ namespace StockMarket.SymbolService.Grains
                 Currency = Currency.USDT
             };
 
-            var wallet = await _walletGrain?.AddToWallet(walletCurrency);
+            var wallet = await _walletGrain.AddToWallet(walletCurrency);
 
             return wallet;
         }
@@ -72,7 +71,16 @@ namespace StockMarket.SymbolService.Grains
         }
 
 
+        /// <summary>
+        /// Opens up the grain factory for mocking.
+        /// </summary>
+        public virtual new IGrainFactory WalletGrainFactory => base.GrainFactory;
+        public virtual new IGrainFactory UsersGrainFactory => base.GrainFactory;
 
+        /// <summary>
+        /// Opens up the grain key name for mocking.
+        /// </summary>
+        public virtual string GrainKey => this.GetPrimaryKeyString();
 
     }
 }

@@ -20,7 +20,7 @@ namespace StockMarket.API
 
             var grain = Client.GetGrain<ICurrenciesPriceGrain>("all-rates");
 
-            await Task.Factory.StartNew(() => Task.FromResult(grain.GetSymbolsPrice().ConfigureAwait(false)));
+            await Task.Factory.StartNew(() => Task.FromResult(grain.StartSymbolsPrice().ConfigureAwait(false)));
             await RehydrateOrders();
         }
 

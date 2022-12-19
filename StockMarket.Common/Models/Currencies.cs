@@ -8,7 +8,7 @@ namespace StockMarket.Common.Models
 {
     public class Currencies
     {
-        public List<string>? CurrenciesInUse;
+        public List<string> CurrenciesInUse;
         public Currencies()
         {
             CurrenciesInUse = GetStocks();

@@ -9,6 +9,6 @@ namespace StockMarket.Common
 {
     public interface ICurrenciesPriceGrain : IGrainWithStringKey
     {
-        Task<string> GetSymbolsPrice();
+        Task StartSymbolsPrice();
     }
 }

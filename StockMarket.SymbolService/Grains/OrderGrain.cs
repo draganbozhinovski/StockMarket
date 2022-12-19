@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Orleans;
 using Orleans.Concurrency;
 using StockMarket.Common;
 using StockMarket.Common.Models;
@@ -9,23 +10,23 @@ namespace StockMarket.SymbolService.Grains
     [Reentrant]
     public class OrderGrain : GrainBase, IOrderGrain
     {
-        private bool _processStatus = true;
-        private Order? _order;
+        public bool _processStatus = true;
+        private Order _order;
         private IUserGrain? _userGrain;
         private IUserOrdersGrain? _userOrdersGrain;
         private double reservedUSDT = 0;
         INotifier _notifier;
 
-        public override async Task OnActivateAsync()
+        public OrderGrain(INotifier notifier)
         {
-            _notifier = new Notifier();
+            _notifier = notifier;
         }
 
         public async Task CreateOrder(Order order, bool isRehydrate)
         {
             _order = order;
-            _userGrain = GrainFactory.GetGrain<IUserGrain>(_order.User.Id);
-            _userOrdersGrain = GrainFactory.GetGrain<IUserOrdersGrain>(_order.User.Id);
+            _userGrain = UserGrainFactory.GetGrain<IUserGrain>(_order.User.Id);
+            _userOrdersGrain = UserOrdersGrainFactory.GetGrain<IUserOrdersGrain>(_order.User.Id);
             await _userOrdersGrain.AddUserOrder(order);
             await ProcessOrder(stopped: false, isRehydrate);
         }
@@ -69,7 +70,7 @@ namespace StockMarket.SymbolService.Grains
                 {
                     _processStatus = false;
                     await OrderSuccess(priceData);
-                    
+
                     break;
                 }
             }
@@ -137,6 +138,17 @@ namespace StockMarket.SymbolService.Grains
             var priceData = await resp.Content.ReadAsStringAsync();
             return JsonConvert.DeserializeObject<PriceUpdate>(priceData);
         }
+
+        /// <summary>
+        /// Opens up the grain factory for mocking.
+        /// </summary>
+        public virtual new IGrainFactory UserGrainFactory => base.GrainFactory;
+        public virtual new IGrainFactory UserOrdersGrainFactory => base.GrainFactory;
+
+        /// <summary>
+        /// Opens up the grain key name for mocking.
+        /// </summary>
+        public virtual string GrainKey => this.GetPrimaryKeyString();
 
 
 

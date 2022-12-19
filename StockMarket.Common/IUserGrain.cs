@@ -10,7 +10,7 @@ namespace StockMarket.Common
 {
     public interface IUserGrain : IGrainWithGuidKey
     {
-        Task<User> CreateUser(string name);
+        Task<User> CreateUser(User name);
         Task<List<WalletCurrency>> AddUSDT(double ammount);
         Task<List<WalletCurrency>> RemoveUsdt(double ammount);
         Task<List<WalletCurrency>> AddToWallet(WalletCurrency walletCurrency);
