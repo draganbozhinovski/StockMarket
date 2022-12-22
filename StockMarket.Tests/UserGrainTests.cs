@@ -21,8 +21,11 @@ namespace StockMarket.Tests
         {
             walletState = Mock.Of<IPersistentState<List<WalletCurrency>>>(_ => _.State == Mock.Of<List<WalletCurrency>>());
             usersState = Mock.Of<IPersistentState<List<User>>>(_ => _.State == Mock.Of<List<User>>());
-            usersGrain = new UsersGrain(usersState);
-            walletGrain = new WalletGrain(walletState);
+
+            usersGrain = Mock.Of<IUsersGrain>();
+            walletGrain = Mock.Of<IWalletGrain>();
+            //usersGrain = new UsersGrain(usersState);
+            //walletGrain = new WalletGrain(walletState);
 
             walletGrainFactory = Mock.Of<IGrainFactory>(_ => _.GetGrain<IWalletGrain>(Guid.Empty, null) == walletGrain);
             usersGrainFactory = Mock.Of<IGrainFactory>(_ => _.GetGrain<IUsersGrain>(0, null) == usersGrain);
@@ -41,6 +44,7 @@ namespace StockMarket.Tests
             var user = Mock.Of<User>();
 
             //Act
+
             await grain.Object.OnActivateAsync();
             var createdUser = await grain.Object.CreateUser(user);
 
@@ -55,7 +59,6 @@ namespace StockMarket.Tests
             var ammount = 0;
 
             //Act
-            await grain.Object.OnActivateAsync();
             var wallet = await grain.Object.AddUSDT(ammount);
 
             //Assert
@@ -69,7 +72,6 @@ namespace StockMarket.Tests
             var ammount = 0;
 
             //Act
-            await grain.Object.OnActivateAsync();
             var wallet = await grain.Object.RemoveUsdt(ammount);
 
             //Assert
@@ -83,7 +85,6 @@ namespace StockMarket.Tests
             var walletCurrency = Mock.Of<WalletCurrency>();
 
             //Act
-            await grain.Object.OnActivateAsync();
             var wallet = await grain.Object.AddToWallet(walletCurrency);
 
             //Assert
@@ -97,7 +98,6 @@ namespace StockMarket.Tests
             var walletCurrency = Mock.Of<WalletCurrency>();
 
             //Act
-            await grain.Object.OnActivateAsync();
             var wallet = await grain.Object.RemoveFromWallet(walletCurrency);
 
             //Assert
@@ -111,7 +111,6 @@ namespace StockMarket.Tests
             var walletCurrency = Mock.Of<WalletCurrency>();
 
             //Act
-            await grain.Object.OnActivateAsync();
             var walletOnAdd = await grain.Object.AddToWallet(walletCurrency);
             var wallet = await grain.Object.GetWallet();
 

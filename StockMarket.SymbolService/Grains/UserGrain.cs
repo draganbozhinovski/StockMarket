@@ -15,6 +15,7 @@ namespace StockMarket.SymbolService.Grains
         public override Task OnActivateAsync()
         {
             _user = new User();
+            _user.Id = this.GetPrimaryKey();
             _walletGrain = WalletGrainFactory.GetGrain<IWalletGrain>(_user.Id);
             _usersGrain = UsersGrainFactory.GetGrain<IUsersGrain>(0);
             return base.OnActivateAsync();
