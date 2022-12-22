@@ -30,7 +30,7 @@ namespace StockMarket.API.Services
             {
                 user.Id = Guid.NewGuid();
                 var userGrain = _client.GetGrain<IUserGrain>(user.Id);
-                return await userGrain.CreateUser(user.Name);
+                return await userGrain.CreateUser(user);
             }
         }
 

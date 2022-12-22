@@ -55,10 +55,5 @@ namespace StockMarket.API.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        public Task SendMessageToGroup(string groupname, string sender, string message)
-        {
-            return Clients.Group(groupname).SendAsync("SendMessage", sender, message);
-        }
-
     }
 }

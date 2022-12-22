@@ -1,33 +1,41 @@
 ﻿using Orleans;
+using Orleans.Concurrency;
+using Orleans.Runtime;
 using StockMarket.Common;
 using StockMarket.Common.Models;
 
 namespace StockMarket.SymbolService.Grains
 {
+    [StatelessWorker(1)]
     public class UsersGrain : Grain, IUsersGrain
     {
-        private List<User> _users;
-
-        public override Task OnActivateAsync()
+        private readonly IPersistentState<List<User>> _users;
+        public UsersGrain(
+            [PersistentState("userProfile", "profileStore")]
+            IPersistentState<List<User>> users
+            )
         {
-            _users = new List<User>();
-            return base.OnActivateAsync();
+            _users = users;
         }
+
         public async Task AddUser(User user)
         {
-            _users.Add(user);
-            await Task.FromResult(user);
+            if (!_users.State.Any(u => u.Name == user.Name))
+            {
+                _users.State.Add(user);
+                await _users.WriteStateAsync();
+            }
         }
 
         public async Task<User?> GetUser(string name)
         {
-            var user = _users.FirstOrDefault(u => u.Name == name);
+            var user = _users.State.FirstOrDefault(u => u.Name == name);
             return await Task.FromResult(user);
         }
 
         public async Task<IEnumerable<User>> GetAllUsers()
         {
-            return await Task.FromResult(_users);
+            return await Task.FromResult(_users.State);
         }
     }
 }

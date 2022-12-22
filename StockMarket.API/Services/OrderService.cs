@@ -14,14 +14,14 @@ namespace StockMarket.API.Services
         public async Task CancelOrder(Order order)
         {
             var grain = _client.GetGrain<IOrderGrain>(order.Id);
-            await Task.Factory.StartNew(() => Task.FromResult(grain.CancelOrder().ConfigureAwait(false)));
+            await grain.CancelOrder();
         }
 
         public async Task CreateOrder(Order order)
         {
             var grain = _client.GetGrain<IOrderGrain>(order.Id);
 
-            await Task.Factory.StartNew(() => Task.FromResult(grain.CreateOrder(order).ConfigureAwait(false)));
+            await Task.Factory.StartNew(() => Task.FromResult(grain.CreateOrder(order, false).ConfigureAwait(false)));
         }
     }
 }

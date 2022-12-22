@@ -10,7 +10,7 @@ namespace StockMarket.API
         public ClusterClientHostedService(ILoggerProvider loggerProvider)
         {
             Client = new ClientBuilder()
-                .UseLocalhostClustering()                
+                .UseLocalhostClustering()
                 .ConfigureLogging(builder => builder.AddProvider(loggerProvider))
                 .Build();
         }
@@ -19,8 +19,9 @@ namespace StockMarket.API
             await Client.Connect(CreateRetryFilter());
 
             var grain = Client.GetGrain<ICurrenciesPriceGrain>("all-rates");
-            
-            await Task.Factory.StartNew(async () => grain.GetSymbolsPrice().ConfigureAwait(false));
+
+            await Task.Factory.StartNew(() => Task.FromResult(grain.StartSymbolsPrice().ConfigureAwait(false)));
+            await RehydrateOrders();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
@@ -46,6 +47,22 @@ namespace StockMarket.API
 
                 await Task.Delay(TimeSpan.FromSeconds(4));
                 return true;
+            }
+        }
+
+        private async Task RehydrateOrders()
+        {
+            var usersGrain = Client.GetGrain<IUsersGrain>(0);
+            var users = await usersGrain.GetAllUsers();
+            foreach (var user in users)
+            {
+                var userOrdersGrain = Client.GetGrain<IUserOrdersGrain>(user.Id);
+                var existingUserOrders = await userOrdersGrain.GetUserOrders();
+                foreach (var order in existingUserOrders)
+                {
+                    var orderGrain = Client.GetGrain<IOrderGrain>(order.Id);
+                    await Task.Factory.StartNew(() => Task.FromResult(orderGrain.CreateOrder(order, true).ConfigureAwait(false)));
+                }
             }
         }
     }

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Orleans;
 using Orleans.Concurrency;
 using StockMarket.Common;
 using StockMarket.Common.Models;
@@ -9,32 +10,48 @@ namespace StockMarket.SymbolService.Grains
     [Reentrant]
     public class OrderGrain : GrainBase, IOrderGrain
     {
-        private bool _processStatus = true;
-        private Order? _order;
+        public bool _processStatus = true;
+        private Order _order;
         private IUserGrain? _userGrain;
+        private IUserOrdersGrain? _userOrdersGrain;
         private double reservedUSDT = 0;
         INotifier _notifier;
 
-        public override async Task OnActivateAsync()
+        public OrderGrain(INotifier notifier)
         {
-            _notifier = new Notifier();
+            _notifier = notifier;
         }
-        private async Task ProcessOrder(bool stopped)
+
+        public async Task CreateOrder(Order order, bool isRehydrate)
         {
-            if (!stopped)
+            _order = order;
+            _userGrain = UserGrainFactory.GetGrain<IUserGrain>(_order.User.Id);
+            _userOrdersGrain = UserOrdersGrainFactory.GetGrain<IUserOrdersGrain>(_order.User.Id);
+            await _userOrdersGrain.AddUserOrder(order);
+            await ProcessOrder(stopped: false, isRehydrate);
+        }
+
+        public async Task CancelOrder()
+        {
+            _processStatus = false;
+            await _userOrdersGrain.RemoveUserOrder(_order);
+            await ProcessOrder(stopped: true, false);
+        }
+
+        private async Task ProcessOrder(bool stopped, bool isRehydrate)
+        {
+            if (!stopped && !isRehydrate)
             {
                 await OrderStart();
             }
-            else
+            if (stopped)
             {
                 await OrderStop();
                 return;
             }
-
             while (_processStatus)
             {
-                var price = await GetPriceQuote(_order.Currency.ToString());
-                var stockData = JsonConvert.DeserializeObject<PriceUpdate>(price);
+                var priceData = await GetPriceQuote(_order.Currency.ToString());
                 if (!_processStatus)
                 {
                     return;
@@ -46,89 +63,94 @@ namespace StockMarket.SymbolService.Grains
                     Id = _order.Id,
                     NumberOf = _order.NumberOf,
                     User = _order.User,
-                    CurrentAmmount = Convert.ToDouble(stockData?.Data.Amount)
-                });            
-
-            if (Convert.ToDouble(stockData?.Data.Amount) <= _order.Bid)
-            {
-                _processStatus = false;                
-                var currencyToAdd = new WalletCurrency
-                {
-                    Ammount = _order.NumberOf,
-                    Currency = _order.Currency
-                };
-                await _userGrain.AddToWallet(currencyToAdd);
-
-                //notify all users for the orpdr processed with observable
-
-                await _notifier.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
-                {
-                    Bid = _order.Bid,
-                    Currency = _order.Currency,
-                    Id = _order.Id,
-                    NumberOf = _order.NumberOf,
-                    User = _order.User,
-                    CurrentAmmount = Convert.ToDouble(stockData?.Data.Amount)
+                    CurrentAmmount = Convert.ToDouble(priceData?.Data.Amount)
                 });
 
+                if (Convert.ToDouble(priceData?.Data.Amount) <= _order.Bid)
+                {
+                    _processStatus = false;
+                    await OrderSuccess(priceData);
 
-                var walltetStatusAfterOrder = await _userGrain.GetWallet();
-                await _notifier.Notify("NotifyWallet", walltetStatusAfterOrder, _order.User);
-                break;
-
+                    break;
+                }
             }
         }
-    }
 
-    private async Task OrderStart()
-    {
-        reservedUSDT = _order.Bid * _order.NumberOf;
-        await _userGrain.RemoveUsdt(reservedUSDT);
-        var walltetStatus = await _userGrain.GetWallet();
-        await _notifier.Notify("NotifyWallet", walltetStatus, _order.User);
-    }
-
-    private async Task OrderStop()
-    {
-        _processStatus = false;
-        await _userGrain.AddUSDT(reservedUSDT);
-        reservedUSDT = 0;
-
-        var walltetStatus = await _userGrain.GetWallet();
-        await _notifier.Notify("NotifyWallet", walltetStatus, _order.User);
-
-        await _notifier.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
+        private async Task OrderStart()
         {
-            Bid = _order.Bid,
-            Currency = _order.Currency,
-            Id = _order.Id,
-            NumberOf = _order.NumberOf,
-            User = _order.User,
-            CurrentAmmount = 0
-        });
+            reservedUSDT = _order.Bid * _order.NumberOf;
+            await _userGrain.RemoveUsdt(reservedUSDT);
+            var walltetStatus = await _userGrain.GetWallet();
+            await _notifier.Notify("NotifyWallet", walltetStatus, _order.User);
+        }
+
+        private async Task OrderStop()
+        {
+            _processStatus = false;
+            await _userGrain.AddUSDT(reservedUSDT);
+            reservedUSDT = 0;
+
+            var walltetStatus = await _userGrain.GetWallet();
+            await _notifier.Notify("NotifyWallet", walltetStatus, _order.User);
+
+            await _notifier.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
+            {
+                Bid = _order.Bid,
+                Currency = _order.Currency,
+                Id = _order.Id,
+                NumberOf = _order.NumberOf,
+                User = _order.User,
+                CurrentAmmount = 0
+            });
+        }
+
+        private async Task OrderSuccess(PriceUpdate stockData)
+        {
+            var currencyToAdd = new WalletCurrency
+            {
+                Ammount = _order.NumberOf,
+                Currency = _order.Currency
+            };
+            await _userGrain.AddToWallet(currencyToAdd);
+
+            await _notifier.Notify("NotifyOrder", "NotifyCloseOrderProcess", new OrderInProcess
+            {
+                Bid = _order.Bid,
+                Currency = _order.Currency,
+                Id = _order.Id,
+                NumberOf = _order.NumberOf,
+                User = _order.User,
+                CurrentAmmount = Convert.ToDouble(stockData.Data.Amount)
+            });
+
+
+            var walltetStatusAfterOrder = await _userGrain.GetWallet();
+            await _notifier.Notify("NotifyWallet", walltetStatusAfterOrder, _order.User);
+            await _userOrdersGrain.RemoveUserOrder(_order);
+        }
+
+        private async Task<PriceUpdate> GetPriceQuote(string currency)
+        {
+            using var resp =
+                await _httpClient.GetAsync(
+                    $"{StockEndpoint}{currency}-USD/buy");
+
+            var priceData = await resp.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<PriceUpdate>(priceData);
+        }
+
+        /// <summary>
+        /// Opens up the grain factory for mocking.
+        /// </summary>
+        public virtual new IGrainFactory UserGrainFactory => base.GrainFactory;
+        public virtual new IGrainFactory UserOrdersGrainFactory => base.GrainFactory;
+
+        /// <summary>
+        /// Opens up the grain key name for mocking.
+        /// </summary>
+        public virtual string GrainKey => this.GetPrimaryKeyString();
+
+
+
     }
-
-    private async Task<string> GetPriceQuote(string currency)
-    {
-        using var resp =
-            await _httpClient.GetAsync(
-                $"{StockEndpoint}{currency}-USD/buy");
-
-        return await resp.Content.ReadAsStringAsync();
-    }
-
-    public async Task CreateOrder(Order order)
-    {
-        _order = order;
-        _userGrain = GrainFactory.GetGrain<IUserGrain>(_order.User.Id);
-        await ProcessOrder(stopped: false); ;
-    }
-
-    public async Task CancelOrder()
-    {
-        await ProcessOrder(stopped: true);
-    }
-
-
-}
 }
